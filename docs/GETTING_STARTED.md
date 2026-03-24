@@ -182,6 +182,12 @@ If you see errors, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#cannot-find-modul
 
 > **What does "build" mean?** TypeScript needs to be translated before it can run. `npm run build` does that translation and puts the result in a `dist/` folder. You only need to run this once (or again after making code changes). See [CONCEPTS.md → What is TypeScript?](CONCEPTS.md#what-is-typescript)
 
+> **Something broken after an update?** If the project stopped working after you pulled new changes, the compiled files in `dist/` may be out of date. Run this to delete them and rebuild from scratch — `npm run clean` deletes the `dist/` folder, `npm run build` recreates it fresh. Think of it like clearing your browser's cache.
+
+```bash
+npm run clean && npm run build
+```
+
 ---
 
 ## Step 9: Try mock mode first (no API key needed)

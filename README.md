@@ -188,3 +188,11 @@ src/
 ```
 
 Scoring criteria, improvement hints, and the two-call preflight pattern are all documented inline in the source. See `src/autoresearch/evaluator.ts` for the 5-criterion scoring system (0–10 scale).
+
+### Useful commands
+
+| Command | What it does |
+| ------- | ------------ |
+| `npm run build` | Compile TypeScript → `dist/` (run once after install, or after code changes) |
+| `npm run clean` | Delete the `dist/` folder — use this if the build breaks after pulling new changes, then run `npm run build` again |
+| `npm run dev` | Watch mode — recompiles automatically as you edit files |

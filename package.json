@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "clean": "rm -rf dist",
     "dev": "tsc --watch",
     "start": "node dist/mcp/index.js",
     "autoresearch": "npx tsx src/autoresearch/main.ts"
