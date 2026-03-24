@@ -2,6 +2,8 @@
   "name": "autoresearch-pm-demo",
   "version": "0.2.0",
   "description": "Three-layer PM pipeline demo: MCP discovery → autoresearch loop → build skill",
+  "author": "Ryan K McDonald",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "build": "tsc",
