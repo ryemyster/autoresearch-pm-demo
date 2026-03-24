@@ -110,7 +110,7 @@ The loop runs to completion without human input. You start it, walk away, come b
 
 *Like the chef:* trials run overnight. You come back in the morning to see what worked.
 
-In this project: `--iterations N` runs all N iterations unattended. The default is 3 (fast, cheap). Real runs use 10–100.
+In this project: `--iterations N` runs all N iterations unattended. The default is 3 (fast, cheap). Real runs use 10–100. The loop stops early if a perfect score (10/10) is reached — no further improvement is possible.
 
 **5. Numerical score**
 The scoring is objective — a number, not a vague judgment. "Score: 7/10" is meaningful. "Pretty good" is not.
@@ -139,6 +139,8 @@ In this project: `artifacts/epics/{id}/iteration_N.json` files. In git mode: `gi
 | Numerical score | YES | 0–10 score after every iteration |
 | Experiment log | YES | `iteration_N.json` files + git log in git mode |
 
+> **Note:** The maximum achievable score is 10/10. In practice, scores above 8 are rare because the LLM scorer is explicitly instructed to be conservative, and `actionability` — the hardest criterion — requires both 3+ concrete deliverables (rule check) and engineer-ready detail (LLM check).
+>
 > **[For developers]** Source file locations: `candidate.json` ← `generator.ts`, git logic ← `src/autoresearch/git.ts`, evaluator ← `src/autoresearch/evaluator.ts`, loop ← `loop.ts: optimize()`.
 
 ---
@@ -217,6 +219,12 @@ Reading from bottom to top:
 - Iteration 3: improved to 9/10 — kept
 
 Every attempt is visible. The dead ends are part of the record.
+
+### Tie-breaking and the baseline
+
+**When scores tie:** If a new iteration matches but doesn't beat the current best score, the loop reverts it. Same quality = keep the previous authoritative version. This prevents silent drift — a different epic at the same score isn't necessarily better.
+
+**The baseline is always kept:** In git mode, iteration 1 (the Discovery output) is always committed and never reverted — it's the starting point, not a candidate. A weak baseline means the loop starts from a low floor. If scores plateau below 5, go back to Discovery and write more specific session notes.
 
 ---
 

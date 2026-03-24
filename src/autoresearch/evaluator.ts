@@ -55,8 +55,20 @@ function ruleDependencyClarity(epic: Epic): [0 | 1, string] {
   return [0, "No dependencies listed."];
 }
 
-function ruleActionability(_epic: Epic): [0 | 1, string] {
-  return [0, "No rule check for actionability — evaluated by LLM only."];
+function ruleActionability(epic: Epic): [0 | 1, string] {
+  // WHAT: Checks two deterministic signals that an epic is engineer-ready.
+  // WHY:  "actionability" can't be fully checked without reading the text,
+  //       but we can rule out epics that lack concrete deliverables or risks
+  //       without any API call. Rule check = free signal before the LLM call.
+  const enoughDeliverables = epic.scope.in.length >= 3;
+  const hasRisks = epic.risks.length >= 1;
+  if (enoughDeliverables && hasRisks) {
+    return [1, `scope.in has ${epic.scope.in.length} item(s); ${epic.risks.length} risk(s) listed.`];
+  }
+  if (!enoughDeliverables) {
+    return [0, `scope.in has only ${epic.scope.in.length} deliverable(s) — need >= 3 for an engineer to estimate.`];
+  }
+  return [0, "No risks listed — an engineer can't estimate without knowing failure modes."];
 }
 
 // ─── LLM Scoring (one batched call) ──────────────────────────────────────────

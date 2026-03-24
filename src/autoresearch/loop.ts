@@ -193,6 +193,11 @@ async function runIterations(
     const result = await evaluate(epic, i);
 
     // SELECT — is this the best score we've seen?
+    // Strict > means a tie does NOT update best. Same score = revert.
+    // WHY: we only keep a new version if it's strictly better.
+    // A tie could mean a different framing at the same quality —
+    // we don't want silent drift. The previous best stays authoritative.
+    // This is correct Karpathy behavior: keep the candidate, not the attempt.
     const isBest = result.total > bestScore;
     const prevBest = bestScore;
 
@@ -245,6 +250,13 @@ async function runIterations(
     previousHints = result.improvementHints;
     // Feed the best epic (not necessarily this one) into the next iteration
     current = isBest ? epic : best;
+
+    // Early exit: 10/10 means all criteria are maxed out.
+    // No further improvement is possible — stop early and save API calls.
+    // Teaching note: in practice this almost never triggers because the LLM
+    // scorer is explicitly "conservative" and actionability is the hardest
+    // criterion to max. See evaluator.ts → LLM_SCORING_SYSTEM.
+    if (bestScore === 10) break;
   }
 
   return { best, bestResult: bestResult!, log: iterationLog, initialScore };
