@@ -12,7 +12,7 @@
     "demo": "npx tsx src/autoresearch/main.ts --idea-id test-idea --target-dir /tmp/autoresearch-demo --iterations 3 --mock"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.54.0",
+    "@anthropic-ai/sdk": "^0.80.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "chalk": "^5.3.0",
     "zod": "^4.3.6"
