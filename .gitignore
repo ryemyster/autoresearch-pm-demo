@@ -1,6 +1,7 @@
 node_modules/
 dist/
 artifacts/
+!src/**/artifacts/
 .env
 
 # OS files
