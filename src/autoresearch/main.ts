@@ -273,8 +273,10 @@ const sharedCallbacks = {
     console.log(chalk.cyan(`Iteration ${i}/${total}`) + chalk.dim(" ────────────────────────────────────────────────"));
     process.stdout.write(chalk.dim("  Generating epic..."));
   },
-  onGenerated(_epic: Epic) {
+  onGenerated(epic: Epic) {
     process.stdout.write(chalk.dim(" Evaluating...\n"));
+    console.log(chalk.dim(`  title:   `) + chalk.white(epic.title));
+    console.log(chalk.dim(`  outcome: `) + chalk.dim(epic.outcome.slice(0, 120) + (epic.outcome.length > 120 ? "…" : "")));
   },
   onEvaluated(result: EvaluationResult, isBest: boolean, bestScore: number) {
     printScoreTable(result);
