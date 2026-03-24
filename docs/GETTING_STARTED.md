@@ -430,17 +430,127 @@ Claude will:
 
 ---
 
+---
+
+## Step 14: Code Quality Loop — improve the code
+
+After Layer 3 writes code, the code quality loop applies the same autoresearch pattern to the code itself: score it, improve it, repeat.
+
+In Claude Code, run:
+
+```
+/run-code-quality
+```
+
+Or run it directly in your terminal (replace paths):
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --idea-id <your-idea-id> \
+  --target-dir /path/to/your-project/docs \
+  --target-file /path/to/your-project/src/your-feature.ts \
+  --iterations 3 \
+  --code-quality \
+  --mock
+```
+
+**Expected output:**
+
+```text
+Autoresearch PM Demo — code-quality loop
+  idea:       your-idea-id
+  iterations: 3 (mock)
+
+Iteration 0/3 ──────────────────────────────────────
+  Criterion              Rule  LLM  Total  Note
+  ────────────────────────────────────────────────────────────
+  No Lint Errors           0     0    0    multiple 'any' types and TODO comments
+  No Security Issues       0     0    0    uses eval() and innerHTML
+  Readability              1     0    1    deeply nested logic
+  Test Coverage Intent     0     0    0    no test patterns found
+  Epic Alignment           –     1    1    code implements the feature
+  ────────────────────────────────────────────────────────────
+  Score: 2/10   Best: -1/10
+
+Iteration 2/3 ──────────────────────────────────────
+  Score: 9/10  ✓ New best!
+
+CODE QUALITY RESULT ─────────────────────────────────────
+  Final score: 9/10
+  File updated: /path/to/your-feature.ts
+```
+
+The code file is updated in place with the best version found.
+
+---
+
+## Step 15: Validation Loop — check the code against the epic
+
+The validation loop closes the pipeline. It reads the success metrics from your epic and checks whether the code actually satisfies each one.
+
+In Claude Code, run:
+
+```
+/run-validation
+```
+
+Or run it directly (the `--validate` flag runs the code quality loop first, then validation):
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --idea-id <your-idea-id> \
+  --target-dir /path/to/your-project/docs \
+  --target-file /path/to/your-project/src/your-feature.ts \
+  --iterations 3 \
+  --validate \
+  --mock
+```
+
+**Expected output:**
+
+```text
+Step 1/2: Code Quality Loop ──────────────────────────────────────────
+  ... (code quality iterations) ...
+  Code quality complete: 9/10
+
+Step 2/2: Validation Loop ────────────────────────────────────────────
+
+  Validation iteration 0/3 ──────────────────────────────────────────
+
+  Metric                                   Pass?  Note
+  ─────────────────────────────────────────────────────────────────────
+  Onboarding drop-off rate                 ✗ No   no analytics tracking found
+  Time to first action                     ✗ No   no timing measurement found
+  Feature discovery rate                   ✗ No   no tracking events
+  User satisfaction score                  ✓ Yes  survey trigger found
+  Support ticket volume                    ✓ Yes  error handling present
+  ─────────────────────────────────────────────────────────────────────
+  2/5 metrics passing   Score: 4/10
+
+  Validation iteration 2/3 ──────────────────────────────────────────
+  5/5 metrics passing   Score: 10/10  ✓ New best!
+
+VALIDATION RESULT ─────────────────────────────────────────────────────
+  All metrics pass! This code satisfies the epic.
+```
+
+**What this means:** Every success metric from the epic you wrote in Step 11 is now satisfied by the code. "Done" was defined by the plan — the validation loop confirmed it.
+
+---
+
 ## What just happened?
 
-Here's the whole thing in one sentence per layer:
+Here's the whole pipeline in one sentence per stage:
 
-| Layer | What happened |
+| Stage | What happened |
 | ----- | ------------- |
 | Layer 1 | You described a problem, an AI asked clarifying questions, and together you produced a rough plan |
 | Layer 2 | A program ran a loop: it rewrote the plan, scored it, and kept improving it until the score was high |
 | Layer 3 | An AI read the finished plan and started writing real code |
+| Code Quality | The same loop pattern improved the code: no security issues, clean types, tests present |
+| Validation | The code was checked against the epic's success metrics — all passed |
 
-Every step saved a file. You can open `artifacts/` to see every version of every plan that was generated. Nothing was hidden.
+Every step saved a file. You can open `artifacts/` to see every version of every plan and every code iteration. Nothing is hidden.
 
 ---
 

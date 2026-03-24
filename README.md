@@ -50,8 +50,8 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
                            │  plan file (raw.json)
                            ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  LAYER 2: A program improves the plan in a loop                       │
-│                                                                       │
+│  LAYER 2: A program improves the plan in a loop         [--git-mode] │
+│                                                         [--explore]  │
 │  generate → score → improve → repeat (3 times)                       │
 │                                                                       │
 │  No human involved. Each version gets a score out of 10.             │
@@ -67,10 +67,34 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 │                                                                       │
 │  Claude Code reads the plan file, makes a task list, and begins      │
 │  implementing the feature.                                            │
+│  Output: code files in your project                                  │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │  code files
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  CODE QUALITY LOOP: Improve the code in a loop    [--code-quality]   │
+│                                                                       │
+│  /run-code-quality                                                    │
+│                                                                       │
+│  Same autoresearch pattern as Layer 2, but applied to code.          │
+│  Scores: no lint errors, no security issues, readability,            │
+│  test coverage, epic alignment. Rewrites code to fix failures.       │
+│  Output: improved code file                                          │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │  improved code
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  VALIDATION LOOP: Check code against epic metrics      [--validate]  │
+│                                                                       │
+│  /run-validation                                                      │
+│                                                                       │
+│  Reads the success_metrics from the epic and checks each one.        │
+│  Score = how many metrics pass. Feeds failures back as hints.        │
+│  "Done" = all metrics pass — defined by the plan, not the coder.    │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Each handoff between layers is a **file** — something you can open, read, and inspect. Nothing is hidden inside a black box.
+Each handoff between stages is a **file** — something you can open, read, and inspect. Nothing is hidden inside a black box.
 
 ---
 
@@ -81,6 +105,24 @@ Each handoff between layers is a **file** — something you can open, read, and 
 | [docs/CONCEPTS.md](docs/CONCEPTS.md) | Plain-English explanations of AI, Claude, MCP, terminals, and Node.js |
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Full step-by-step tutorial from zero to running the demo |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and how to fix them |
+
+---
+
+## Why this matters for your AI PM career
+
+The hardest part of breaking into AI PM roles isn't content or certifications — it's demonstrable experience. Hiring managers want to see that you've actually shipped something with AI, not just read about it.
+
+This project gives you that. By the end of the demo you will have:
+
+- **Used MCP tools** inside a real code editor to run a structured discovery process
+- **Watched an AI optimization loop** run autonomously, score its own output, and improve it
+- **Shipped a plan → code handoff** — a full 0-to-1 pipeline, even if it's a demo problem
+
+That's not a course certificate. That's something you built and ran yourself.
+
+The deeper skill this teaches: **defining constraints so a system can explore options for you.** That's the shift from traditional PM work (write the doc) to AI-native PM work (define what "good" looks like, let the system generate candidates, you choose). The article that inspired this project calls it "pre-decision exploration under constraints."
+
+Want to go further? Try running the loop on a real problem you're working on. Use your own `--target-dir`. The output is a real plan file you could hand to an engineer tomorrow.
 
 ---
 

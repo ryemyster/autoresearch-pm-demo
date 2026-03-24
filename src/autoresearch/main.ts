@@ -1,31 +1,37 @@
-// Autoresearch CLI — Layer 2 entry point.
+// Autoresearch CLI — entry point for all loops (Layers 2, Code Quality, Validation).
 //
 // Usage:
 //   npx tsx src/autoresearch/main.ts \
 //     --idea-id <id> \
 //     --target-dir /absolute/path/to/project/docs \
 //     --iterations 3 \
-//     [--git-mode]    ← enable git commit/revert cycle (the full Karpathy pattern)
-//     [--explore]     ← run 3 framings side-by-side, then pick the best
-//     [--yes]         ← skip the cost-confirmation prompt
-//     [--mock]        ← no API key needed, uses scripted fixtures
+//     [--git-mode]      ← enable git commit/revert cycle (the full Karpathy pattern)
+//     [--explore]       ← run 3 framings side-by-side, then pick the best
+//     [--code-quality]  ← run the code quality improvement loop (requires --target-file)
+//     [--validate]      ← run the validation loop against epic metrics (requires --target-file)
+//     [--target-file]   ← path to the code file to improve (required for --code-quality/--validate)
+//     [--yes]           ← skip the cost-confirmation prompt
+//     [--mock]          ← no API key needed, uses scripted fixtures
 //
-// Teaching note: The env vars (MOCK_LLM, GIT_MODE, EXPLORE_MODE) MUST be set
-// before any imports, because config.ts reads them lazily at access time but
-// module-level code in imported files runs as soon as they are imported.
-// This is why the flag-setting block comes FIRST, before all import statements.
+// Teaching note: ALL env vars MUST be set before any imports, because config.ts
+// reads them lazily at access time. Module-level code in imported files runs
+// as soon as they are imported, so flags must come FIRST.
 
 // ── Set env vars BEFORE any imports ───────────────────────────────────────────
 const args = process.argv.slice(2);
-if (args.includes("--mock"))     process.env.MOCK_LLM = "true";
-if (args.includes("--git-mode")) process.env.GIT_MODE = "true";
-if (args.includes("--explore"))  process.env.EXPLORE_MODE = "true";
+if (args.includes("--mock"))         process.env.MOCK_LLM = "true";
+if (args.includes("--git-mode"))     process.env.GIT_MODE = "true";
+if (args.includes("--explore"))      process.env.EXPLORE_MODE = "true";
+if (args.includes("--code-quality")) process.env.CODE_QUALITY_MODE = "true";
+if (args.includes("--validate"))     process.env.VALIDATION_MODE = "true";
 
 import * as readline from "readline";
 import chalk from "chalk";
 import { optimize, explore, injectVariation } from "./loop.js";
+import { runCodeQuality } from "../code-quality/loop.js";
+import { runValidation } from "../validation/loop.js";
 import { assertApiKey, settings } from "../shared/config.js";
-import type { Epic, EvaluationResult, ExploreReport } from "../shared/types/index.js";
+import type { Epic, EvaluationResult, ExploreReport, CodeQualityResult, ValidationResult } from "../shared/types/index.js";
 
 // ─── Arg parsing ──────────────────────────────────────────────────────────────
 
@@ -34,13 +40,16 @@ function getArg(flag: string): string | undefined {
   return i !== -1 ? args[i + 1] : undefined;
 }
 
-const ideaId     = getArg("--idea-id");
-const targetDir  = getArg("--target-dir");
+const ideaId       = getArg("--idea-id");
+const targetDir    = getArg("--target-dir");
+const targetFile   = getArg("--target-file");  // required for --code-quality / --validate
 const iterationsStr = getArg("--iterations");
-const mockMode   = args.includes("--mock");
-const gitMode    = args.includes("--git-mode");
-const exploreMode = args.includes("--explore");
-const skipConfirm = args.includes("--yes");
+const mockMode      = args.includes("--mock");
+const gitMode       = args.includes("--git-mode");
+const exploreMode   = args.includes("--explore");
+const codeQualityMode = args.includes("--code-quality");
+const validationMode  = args.includes("--validate");
+const skipConfirm   = args.includes("--yes");
 
 if (!ideaId || !targetDir) {
   console.error(chalk.red("Error: --idea-id and --target-dir are required."));
@@ -50,10 +59,19 @@ if (!ideaId || !targetDir) {
   console.error("    --idea-id <id> \\");
   console.error("    --target-dir /absolute/path/to/project/docs \\");
   console.error("    --iterations 3 \\");
-  console.error("    [--git-mode]    enable git commit/revert cycle");
-  console.error("    [--explore]     run 3 framings, pick the best");
-  console.error("    [--yes]         skip cost confirmation prompt");
-  console.error("    [--mock]        no API key needed (uses scripted fixtures)");
+  console.error("    [--git-mode]                enable git commit/revert cycle (Layer 2)");
+  console.error("    [--explore]                 run 3 framings, pick the best (Layer 2)");
+  console.error("    [--code-quality]            run code quality loop (requires --target-file)");
+  console.error("    [--validate]                run validation loop   (requires --target-file)");
+  console.error("    [--target-file /path/to/file.ts]  code file to improve");
+  console.error("    [--yes]                     skip cost confirmation prompt");
+  console.error("    [--mock]                    no API key needed (uses scripted fixtures)");
+  process.exit(1);
+}
+
+if ((codeQualityMode || validationMode) && !targetFile) {
+  console.error(chalk.red("Error: --target-file is required when using --code-quality or --validate."));
+  console.error(chalk.dim("  Example: --target-file /path/to/your-feature.ts"));
   process.exit(1);
 }
 
@@ -176,6 +194,47 @@ function printExploreTable(report: ExploreReport): void {
   console.log(chalk.dim(`  Recommended: #${report.recommendedIndex + 1} (${report.variations[report.recommendedIndex].framingLabel}) scored highest.`));
 }
 
+// ─── Code Quality Display Helpers ─────────────────────────────────────────────
+
+const CODE_CRITERION_LABELS: Record<string, string> = {
+  no_lint_errors:       "No Lint Errors      ",
+  no_security_issues:   "No Security Issues  ",
+  readability:          "Readability         ",
+  test_coverage_intent: "Test Coverage Intent",
+  epic_alignment:       "Epic Alignment      ",
+};
+
+function printCodeQualityTable(result: CodeQualityResult): void {
+  console.log("");
+  console.log(chalk.dim("  Criterion              Rule  LLM  Total  Note"));
+  console.log(chalk.dim("  ────────────────────────────────────────────────────────────────────"));
+  for (const c of result.criteria) {
+    const label = CODE_CRITERION_LABELS[c.name] ?? c.name.padEnd(20);
+    const rule = c.ruleScore === 0 && c.name === "epic_alignment" ? chalk.dim(" –") : scoreColor(c.ruleScore);
+    const llm = scoreColor(c.llmScore);
+    const total = scoreColor(c.total);
+    const note = c.total < 2 ? chalk.dim(c.llmRationale.slice(0, 50)) : chalk.dim("✓");
+    console.log(`  ${label}  ${rule}     ${llm}    ${total}    ${note}`);
+  }
+  console.log(chalk.dim("  ────────────────────────────────────────────────────────────────────"));
+}
+
+function printValidationTable(result: ValidationResult): void {
+  console.log("");
+  console.log(chalk.dim("  Metric                                   Pass?  Note"));
+  console.log(chalk.dim("  ─────────────────────────────────────────────────────────────────────────"));
+  for (const t of result.tests) {
+    const metric = t.metric.slice(0, 40).padEnd(40);
+    const pass = t.passed ? chalk.green("✓ Yes") : chalk.red("✗ No ");
+    const note = chalk.dim(t.rationale.slice(0, 45));
+    console.log(`  ${metric}  ${pass}  ${note}`);
+  }
+  console.log(chalk.dim("  ─────────────────────────────────────────────────────────────────────────"));
+  const passStr = `${result.passCount}/${result.tests.length} metrics passing`;
+  const scoreStr = `${result.totalScore}/10`;
+  console.log(`  ${result.passCount === result.tests.length ? chalk.green(passStr) : chalk.yellow(passStr)}   Score: ${chalk.bold(scoreStr)}`);
+}
+
 /**
  * WHAT: Prompts the user to pick a number (1, 2, or 3) from the explore table.
  * WHY:  The PM is the decision-maker — the system surfaces options with scores,
@@ -273,10 +332,14 @@ const sharedCallbacks = {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+// Determine which mode we're running
+const activeMode = validationMode ? "validate" : codeQualityMode ? "code-quality" : exploreMode ? "explore" : gitMode ? "optimize+git" : "optimize";
+
 console.log("");
-console.log(chalk.bold("Autoresearch PM Demo") + chalk.dim(" — Layer 2: Optimization Loop"));
+console.log(chalk.bold("Autoresearch PM Demo") + chalk.dim(` — ${activeMode} loop`));
 console.log(chalk.dim(`  idea:       ${ideaId}`));
 console.log(chalk.dim(`  target:     ${targetDir}`));
+if (targetFile) console.log(chalk.dim(`  file:       ${targetFile}`));
 console.log(chalk.dim(`  iterations: ${iterations}${exploreMode ? " × 3 variations" : ""}${mockMode ? " (mock)" : ""}${gitMode ? " (git mode)" : ""}`));
 
 // Show cost estimate and confirm before making any API calls
@@ -292,7 +355,101 @@ if (!mockMode) {
   }
 }
 
-if (exploreMode) {
+// Determine the epic path for code quality and validation modes
+// The epic is in targetDir as {ideaId}-epic.md (injected by Layer 2)
+const epicPath = targetDir ? `${targetDir}/${ideaId}-epic.md` : "";
+
+if (validationMode) {
+  // ── Validation mode: validate code against epic's success metrics ────────
+  // If --validate is set, run code quality first, then validation
+  if (targetFile) {
+    console.log("");
+    console.log(chalk.bold.cyan("Step 1/2: Code Quality Loop") + chalk.dim(" ──────────────────────────────────────────"));
+    await runCodeQuality(targetFile, epicPath, ideaId, iterations, {
+      onIterationStart(i, total) {
+        console.log("");
+        console.log(chalk.cyan(`  Code quality iteration ${i}/${total}`) + chalk.dim(" ────────────────────────────────────────"));
+        process.stdout.write(chalk.dim("  Improving code..."));
+      },
+      onImproved(_code, file) {
+        process.stdout.write(chalk.dim(` Evaluating...\n`));
+      },
+      onEvaluated(result: CodeQualityResult, isBest, bestScore) {
+        printCodeQualityTable(result);
+        console.log(chalk.bold(`  Score: ${result.total}/10`) + "   " + chalk.dim(`Best: ${bestScore}/10`) + (isBest ? "  " + chalk.green("✓ New best!") : ""));
+      },
+      onComplete(_code, result, file) {
+        console.log("");
+        console.log(chalk.green(`  Code quality complete: ${result.total}/10`));
+        console.log(chalk.dim(`  File updated: ${file}`));
+      },
+    });
+
+    console.log("");
+    console.log(chalk.bold.cyan("Step 2/2: Validation Loop") + chalk.dim(" ────────────────────────────────────────────"));
+    await runValidation(targetFile, epicPath, ideaId, iterations, {
+      onIterationStart(i, total) {
+        console.log("");
+        console.log(chalk.cyan(`  Validation iteration ${i}/${total}`) + chalk.dim(" ──────────────────────────────────────────"));
+        process.stdout.write(chalk.dim("  Validating against epic metrics..."));
+      },
+      onValidated(result: ValidationResult, isBest) {
+        process.stdout.write("\n");
+        printValidationTable(result);
+        if (isBest) console.log(chalk.green("  ✓ New best pass rate!"));
+      },
+      onComplete(result, file) {
+        console.log("");
+        console.log(chalk.bold.green("VALIDATION RESULT") + chalk.dim(" ─────────────────────────────────────────────────"));
+        printValidationTable(result);
+        console.log("");
+        console.log(chalk.dim("  File:"), chalk.cyan(file));
+        if (result.passCount === result.tests.length && result.tests.length > 0) {
+          console.log(chalk.green("  All metrics pass! This code satisfies the epic."));
+        } else {
+          console.log(chalk.yellow(`  ${result.failCount} metric(s) still failing. Run more iterations or review manually.`));
+        }
+        console.log("");
+      },
+    });
+  }
+
+} else if (codeQualityMode) {
+  // ── Code quality mode: improve code quality ────────────────────────────────
+  if (targetFile) {
+    await runCodeQuality(targetFile, epicPath, ideaId, iterations, {
+      onIterationStart(i, total) {
+        console.log("");
+        console.log(chalk.cyan(`Iteration ${i}/${total}`) + chalk.dim(" ────────────────────────────────────────────────"));
+        process.stdout.write(chalk.dim("  Improving code..."));
+      },
+      onImproved(_code, file) {
+        process.stdout.write(chalk.dim(` Evaluating...\n`));
+      },
+      onEvaluated(result: CodeQualityResult, isBest, bestScore) {
+        printCodeQualityTable(result);
+        console.log(chalk.bold(`  Score: ${result.total}/10`) + "   " + chalk.dim(`Best: ${bestScore}/10`) + (isBest ? "  " + chalk.green("✓ New best!") : ""));
+        if (result.improvementHints.length > 0) {
+          console.log("");
+          console.log(chalk.dim("  Hints for next iteration:"));
+          for (const hint of result.improvementHints) {
+            console.log(chalk.yellow("  → ") + chalk.dim(hint.slice(0, 100) + (hint.length > 100 ? "…" : "")));
+          }
+        }
+      },
+      onComplete(bestCode, result, file) {
+        console.log("");
+        console.log(chalk.bold.green("CODE QUALITY RESULT") + chalk.dim(" ─────────────────────────────────────────────────"));
+        console.log(chalk.dim("  Final score: ") + chalk.bold(`${result.total}/10`));
+        console.log(chalk.dim("  File updated: ") + chalk.cyan(file));
+        console.log("");
+        console.log(chalk.dim("  Next → run validation:"), chalk.bold(`--validate --target-file ${file}`));
+        console.log("");
+      },
+    });
+  }
+
+} else if (exploreMode) {
   // ── Explore mode: 3 framings, side-by-side comparison ─────────────────────
   const report = await explore(ideaId, targetDir, iterations, {
     ...sharedCallbacks,
@@ -301,7 +458,6 @@ if (exploreMode) {
     },
   });
 
-  // Let the PM pick which variation to inject
   const chosenIndex = await promptVariationChoice(report.variations.length, report.recommendedIndex);
   const chosen = report.variations[chosenIndex];
 
@@ -315,6 +471,6 @@ if (exploreMode) {
   console.log("");
 
 } else {
-  // ── Normal mode (and git mode) ─────────────────────────────────────────────
+  // ── Normal mode (and git mode): optimize the epic ─────────────────────────
   await optimize(ideaId, targetDir, iterations, sharedCallbacks);
 }

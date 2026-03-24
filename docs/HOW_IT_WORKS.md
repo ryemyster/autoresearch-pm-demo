@@ -349,17 +349,150 @@ None of these are limitations — they're intentional design choices for a teach
 
 ---
 
+---
+
+## The Code Quality Loop
+
+After Layer 3 writes code, the next question is: is that code actually good?
+
+"Good" here means four things:
+
+1. **No lint errors** — clean types, no TODOs, reasonable file length
+2. **No security issues** — no eval(), no innerHTML, no hardcoded secrets
+3. **Readable** — clear names, short functions, no magic numbers
+4. **Tests exist** — at least the core path is testable
+
+There's a fifth criterion: **epic alignment** — does the code actually implement what the epic said? This one can only be judged by reading both the code and the epic, so it's evaluated by the LLM only.
+
+### The same pattern, different artifact
+
+The code quality loop is structurally identical to the Layer 2 optimization loop:
+
+| Layer 2 (epic optimization) | Code Quality Loop |
+| --- | --- |
+| Reads current epic from `raw.json` | Reads current code from target file |
+| Calls `generate()` → improved epic | Calls `improveCode()` → improved code |
+| Calls `evaluate()` → 0-10 score | Calls `evaluateCode()` → 0-10 score |
+| Keeps best, discards worse | Writes best back to file |
+| Saves iteration logs to `artifacts/epics/` | Saves iteration logs to `artifacts/code-quality/` |
+
+The only difference is the artifact type. Everything else — the loop structure, the callbacks, the scoring pattern — is identical.
+
+### How to run it
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --idea-id my-feature \
+  --target-dir ./docs \
+  --target-file ./src/my-feature.ts \
+  --iterations 3 \
+  --code-quality \
+  --mock
+```
+
+Or in Claude Code: `/run-code-quality` after `/build-from-epic`.
+
+### What the scores mean
+
+A score of 9/10 after 3 iterations means the loop found a version of the code that passes 9 out of 10 possible criterion points. The remaining point might be something the LLM couldn't fully verify in mock mode — run with a real API key for deeper analysis.
+
+---
+
+## The Validation Loop
+
+The validation loop closes the entire pipeline. It asks the final question:
+
+> **"Does the code satisfy the metrics the PM wrote in the epic?"**
+
+Not "is the code clean?" (that's the code quality loop). Not "does it look right?" (that's a code review). Specifically: does it implement the outcomes the PM defined at the start?
+
+### "Done" is defined by the plan
+
+Every epic has a `## Success Metrics` section:
+
+```markdown
+| Metric | Target | Measurement |
+| --- | --- | --- |
+| Onboarding drop-off rate | < 15% | Mixpanel funnel report |
+| Time to first action | < 60s | Analytics event timing |
+```
+
+The validation loop reads these rows and checks, for each one: *does the code contain the implementation needed to achieve this metric?*
+
+This is powerful because **done** is defined by the PM at the start of the pipeline — not by the developer at the end.
+
+### How it scores
+
+```text
+passCount / totalMetrics × 10 = score
+```
+
+5 metrics, 5 passing = 10/10. 3 metrics passing = 6/10. The score reflects how complete the implementation is against the plan.
+
+### When a metric fails
+
+The failure hint is specific:
+
+```text
+Implement code to satisfy metric "Time to first action": no timing
+measurement found in the code. Add performance.now() or equivalent.
+```
+
+That hint gets passed to the code generator (the same one used in the code quality loop), which produces an improved version. Then we re-validate.
+
+### Running the validation loop
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --idea-id my-feature \
+  --target-dir ./docs \
+  --target-file ./src/my-feature.ts \
+  --iterations 3 \
+  --validate \
+  --mock
+```
+
+The `--validate` flag automatically runs the code quality loop first, then validation. You get both in one command.
+
+Or in Claude Code: `/run-validation` after `/run-code-quality`.
+
+### The complete pipeline
+
+```text
+Layer 1: validate_problem → prioritize_opportunities → define_epic
+              ↓ raw.json (seed epic)
+Layer 2: autoresearch loop (--iterations 3)
+              ↓ {idea-id}-epic.md (polished plan)
+Layer 3: /build-from-epic
+              ↓ code files
+Code Quality Loop: --code-quality (--iterations 3)
+              ↓ improved code
+Validation Loop: --validate (--iterations 3)
+              ↓ all metrics pass → done
+```
+
+Every stage outputs a file. Every stage is inspectable. Nothing is hidden.
+
+---
+
 ## Code Annotations: Which File Implements Which Concept
 
 | Concept | File |
 | ------- | ---- |
 | The git revert pattern | `src/autoresearch/git.ts` |
-| The single modifiable file | `src/autoresearch/generator.ts` (writes `candidate.json`) |
-| The read-only evaluator | `src/autoresearch/evaluator.ts` |
+| The single modifiable file (epics) | `src/autoresearch/generator.ts` (writes `candidate.json`) |
+| The read-only evaluator (epics) | `src/autoresearch/evaluator.ts` |
 | The optimization loop | `src/autoresearch/loop.ts` |
 | Explore mode (3 framings) | `src/autoresearch/loop.ts` → `explore()` function |
 | CLI flags, cost estimate, explore table | `src/autoresearch/main.ts` |
-| Settings (gitMode, exploreMode) | `src/shared/config.ts` |
+| The code quality evaluator | `src/code-quality/evaluator.ts` |
+| The code quality generator | `src/code-quality/generator.ts` |
+| The code quality loop | `src/code-quality/loop.ts` |
+| The validation evaluator | `src/validation/evaluator.ts` |
+| The validation loop | `src/validation/loop.ts` |
+| Settings (all mode flags) | `src/shared/config.ts` |
 | Data shapes for all concepts | `src/shared/types/index.ts` |
 | Layer 1 MCP tools | `src/mcp/tools/` |
 | Layer 3 build skill | `.claude/commands/build-from-epic.md` |
+| Code quality skill | `.claude/commands/run-code-quality.md` |
+| Validation skill | `.claude/commands/run-validation.md` |

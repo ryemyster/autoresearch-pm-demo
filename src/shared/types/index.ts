@@ -155,6 +155,100 @@ export interface ExploreReport {
   recommendedIndex: number; // index (0-2) of the highest-scoring variation
 }
 
+// ─── Layer 4: Code Quality Loop ───────────────────────────────────────────────
+// Layer 4 applies the same autoresearch pattern to CODE instead of plans.
+// After Layer 3 writes code, Layer 4 improves it in a loop — scoring quality,
+// security, readability, and whether it actually does what the epic asked for.
+//
+// LEARN MORE: docs/HOW_IT_WORKS.md → "Layer 4: The Code Quality Loop"
+
+/**
+ * The result of evaluating one version of a code file.
+ * Same structure as EvaluationResult, but for code instead of epics.
+ * 5 criteria × 0-2 each = 0-10 total.
+ */
+export interface CodeQualityResult {
+  criteria: CodeCriterionScore[]; // exactly 5
+  total: number; // 0-10
+  improvementHints: string[]; // one hint per criterion that scored < 2
+  targetFile: string; // which file was evaluated
+}
+
+/**
+ * Score for one code quality criterion.
+ * Rule check = deterministic (no API call).
+ * LLM check = semantic (one Claude call for all 5 criteria).
+ */
+export interface CodeCriterionScore {
+  name: string; // e.g., "no_lint_errors"
+  ruleScore: 0 | 1; // deterministic check
+  llmScore: 0 | 1; // LLM semantic check
+  total: 0 | 1 | 2; // ruleScore + llmScore
+  ruleRationale: string; // why rule passed or failed
+  llmRationale: string; // why LLM passed or failed
+}
+
+/**
+ * One entry in the Layer 4 experiment log.
+ * Records what code was tried, how it scored, and whether it was the best so far.
+ */
+export interface CodeIterationLog {
+  iteration: number;
+  code: string; // the full code string that was generated
+  result: CodeQualityResult;
+  isBest: boolean;
+}
+
+// Shape returned by the batched LLM scoring call in layer4/evaluator.ts
+export interface LLMCodeScoringResponse {
+  no_lint_errors: { score: 0 | 1; rationale: string };
+  no_security_issues: { score: 0 | 1; rationale: string };
+  readability: { score: 0 | 1; rationale: string };
+  test_coverage_intent: { score: 0 | 1; rationale: string };
+  epic_alignment: { score: 0 | 1; rationale: string };
+}
+
+// ─── Layer 5: Validation Loop ─────────────────────────────────────────────────
+// Layer 5 closes the loop: it reads the epic's success_metrics as test specs,
+// checks whether the code satisfies each one, and scores by pass rate.
+// This is "done" defined by the plan, not by the programmer.
+//
+// LEARN MORE: docs/HOW_IT_WORKS.md → "Layer 5: The Validation Loop"
+
+/**
+ * The result of validating code against an epic's success_metrics.
+ * Score = passCount / totalTests * 10.
+ */
+export interface ValidationResult {
+  tests: TestResult[]; // one per success_metric in the epic
+  passCount: number;
+  failCount: number;
+  totalScore: number; // 0-10
+  improvementHints: string[]; // one hint per failed test
+}
+
+/**
+ * Result of checking one success_metric from the epic.
+ * "passed" = the code demonstrably satisfies this metric.
+ */
+export interface TestResult {
+  metric: string; // copied from epic.success_metrics[n].metric
+  description: string; // what was checked
+  passed: boolean;
+  rationale: string; // why it passed or failed
+}
+
+/**
+ * One entry in the Layer 5 experiment log.
+ */
+export interface ValidationIterationLog {
+  iteration: number;
+  result: ValidationResult;
+  isBest: boolean;
+}
+
+// ─── Layer 2 LLM scoring (kept here for proximity) ────────────────────────────
+
 // Shape returned by the batched LLM scoring call in evaluator.ts
 export interface LLMScoringResponse {
   outcome_clarity: { score: 0 | 1; rationale: string };
