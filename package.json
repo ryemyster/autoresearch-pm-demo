@@ -8,7 +8,8 @@
     "clean": "rm -rf dist artifacts",
     "dev": "tsc --watch",
     "start": "node dist/mcp/index.js",
-    "autoresearch": "npx tsx src/autoresearch/main.ts"
+    "autoresearch": "npx tsx src/autoresearch/main.ts",
+    "demo": "npx tsx src/autoresearch/main.ts --idea-id test-idea --target-dir /tmp/autoresearch-demo --iterations 3 --mock"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",

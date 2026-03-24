@@ -193,6 +193,7 @@ Scoring criteria, improvement hints, and the two-call preflight pattern are all 
 
 | Command | What it does |
 | ------- | ------------ |
+| `npm run demo` | **Quick start** — runs the Epic Refinement Loop in mock mode (no API key, no cost). Good first command after `npm install && npm run build`. |
 | `npm run build` | Compile TypeScript → `dist/` (run once after install, or after code changes) |
 | `npm run clean` | Delete `dist/` (compiled code) and `artifacts/` (demo output) — resets everything; follow with `npm run build` |
 | `npm run dev` | Watch mode — recompiles automatically as you edit files |

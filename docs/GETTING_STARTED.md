@@ -20,6 +20,26 @@ That's it. Everything else gets installed in the steps below.
 
 ---
 
+## Just want to see it run? (Quick start)
+
+If you already have Node.js installed and just want to watch the loop in action before reading anything else, run these three commands:
+
+```bash
+npm install
+npm run build
+npm run demo
+```
+
+That's it. No API key needed. The loop runs 3 iterations using scripted responses, scores each one, and saves a finished plan file to `/tmp/autoresearch-demo/`.
+
+**What `npm run demo` does under the hood:**
+
+It runs the Epic Refinement Loop in mock mode — the same loop described throughout this guide, but with pre-scripted AI responses instead of real API calls. You'll see scores go up (2 → 7 → 9), improvement hints, and a final plan file saved to disk. Nothing is sent to any server. Nothing costs money.
+
+> **Want the full experience?** Continue with Step 1 below to install VS Code, get an API key, and run the complete pipeline including Discovery and Build.
+
+---
+
 ## A note on multi-line commands
 
 Several commands in this guide are long and are split across multiple lines using a backslash `\` at the end of each line. The `\` just means "this command continues on the next line." The whole block is **one single command**.
