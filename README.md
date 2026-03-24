@@ -147,6 +147,7 @@ The pipeline has 5 stages. Three of them are **loops** — they run automaticall
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Full step-by-step tutorial from zero to running the demo |
 | [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | Deep dive: Karpathy pattern, MCP tool design, all five pipeline stages |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and how to fix them |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to contribute — fork, branch, PR flow explained for beginners |
 
 ### Key external resources
 
