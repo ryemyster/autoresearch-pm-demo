@@ -117,6 +117,42 @@ export interface RunManifest {
   timestamp: string;
   model: string;
   mockMode: boolean;
+  // New fields for the upgraded Karpathy pattern:
+  gitMode: boolean; // was --git-mode enabled for this run?
+  exploreMode: boolean; // was --explore enabled? (3-variation pre-decision exploration)
+  candidatePath?: string; // path to candidate.json — the "single modifiable file"
+  variationCount?: number; // how many framings were explored (explore mode only)
+}
+
+// ─── Explore Mode: Pre-Decision Exploration ───────────────────────────────────
+// Explore mode runs the optimization loop with 3 different "framings" of the same
+// problem, then lets the PM pick the best one. This is the core PM insight:
+// "pre-decision exploration under constraints" — not just improving one document.
+//
+// LEARN MORE: docs/HOW_IT_WORKS.md → "Explore Mode: Pre-Decision Exploration"
+
+/**
+ * The result of one optimization run for a single framing variation.
+ * Explore mode produces 3 of these, one per framing.
+ */
+export interface VariationResult {
+  variationIndex: number; // 0, 1, or 2
+  framingLabel: string; // e.g., "outcome-focused"
+  seedDescription: string; // one sentence: what made this framing different
+  best: Epic; // the highest-scoring epic from this variation's loop
+  bestScore: number; // 0-10
+  iterationLog: IterationLog[]; // full log of all iterations for this variation
+}
+
+/**
+ * The final comparison report produced by explore mode.
+ * Contains all 3 variations so the PM can compare and choose.
+ */
+export interface ExploreReport {
+  ideaId: string;
+  timestamp: string;
+  variations: VariationResult[]; // always length 3
+  recommendedIndex: number; // index (0-2) of the highest-scoring variation
 }
 
 // Shape returned by the batched LLM scoring call in evaluator.ts

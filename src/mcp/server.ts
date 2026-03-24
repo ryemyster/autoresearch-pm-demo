@@ -1,5 +1,5 @@
 // MCP server — registers all 3 discovery tools.
-// Pattern mirrors ascendvent-product-management/src/server.ts exactly.
+// Registers 3 discovery tools + inject_artifact utility.
 //
 // Tools:
 //   validate_problem       (Discover: stress-test the problem hypothesis)

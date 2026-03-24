@@ -8,6 +8,8 @@
 // The feedback[] parameter threads improvement hints from the evaluator forward.
 // In mock mode, returns deterministic fixtures so the loop can be demoed offline.
 
+import * as fs from "fs";
+import * as path from "path";
 import { callClaudeJson } from "../shared/claude.js";
 import { parseEpic } from "./epicSchema.js";
 import { settings } from "../shared/config.js";
@@ -39,19 +41,91 @@ ${feedbackBlock}
 Return an improved version of this epic as a JSON object matching the same shape.`;
 }
 
-// ─── Live Generator ───────────────────────────────────────────────────────────
-export async function generate(seed: Epic, feedback: string[] | null = null): Promise<Epic> {
+// ─── Candidate File Writer ────────────────────────────────────────────────────
+
+/**
+ * WHAT: Writes an epic to a file on disk if a path is provided.
+ * WHY:  The "single modifiable file" pattern means the agent always has one
+ *       real file it's working on — not just an invisible variable in memory.
+ *       Writing candidate.json lets you open the file between iterations and
+ *       see exactly what changed. It also lets git track the changes.
+ * LEARN MORE: docs/HOW_IT_WORKS.md → "The Single File Pattern"
+ */
+function writeCandidateFile(epic: Epic, candidatePath: string | undefined): void {
+  if (!candidatePath) return;
+  // Create the directory if it doesn't exist yet
+  fs.mkdirSync(path.dirname(candidatePath), { recursive: true });
+  fs.writeFileSync(candidatePath, JSON.stringify(epic, null, 2), "utf-8");
+}
+
+// ─── Main Generator ───────────────────────────────────────────────────────────
+
+/**
+ * WHAT: Takes the current epic and improvement hints, calls Claude to produce
+ *       a better version, then optionally writes it to candidate.json on disk.
+ * WHY:  The candidatePath parameter is optional so the function works the same
+ *       as before when git mode is off. When git mode is on, the file write
+ *       happens here — BEFORE the git commit in loop.ts — so the commit
+ *       captures the new file contents.
+ * LEARN MORE: docs/HOW_IT_WORKS.md → "The Single File Pattern"
+ */
+export async function generate(
+  seed: Epic,
+  feedback: string[] | null = null,
+  candidatePath?: string
+): Promise<Epic> {
+  let epic: Epic;
+
   if (settings.mockMode) {
-    return getMockEpic(feedback ? feedback.length : 0);
+    epic = getMockEpic(feedback ? feedback.length : 0);
+  } else {
+    const raw = await callClaudeJson<unknown>({
+      system: SYSTEM_PROMPT,
+      userMessage: buildUserPrompt(seed, feedback),
+      maxTokens: 1500,
+    });
+    epic = parseEpic(raw);
   }
 
-  const raw = await callClaudeJson<unknown>({
-    system: SYSTEM_PROMPT,
-    userMessage: buildUserPrompt(seed, feedback),
-    maxTokens: 1500,
-  });
+  writeCandidateFile(epic, candidatePath);
+  return epic;
+}
 
-  return parseEpic(raw);
+/**
+ * WHAT: Like generate(), but applies a "framing" — a strategic lens that
+ *       tilts the epic toward a specific perspective (e.g., outcome-focused,
+ *       risk-focused, or metric-focused).
+ * WHY:  Explore mode runs three different framings of the same seed so the PM
+ *       can compare genuinely different approaches. The framing is added to the
+ *       system prompt, not the user prompt, so it shapes the AI's "personality"
+ *       for that variation — not just one request.
+ *       This is the "pre-decision exploration" concept: same problem, three
+ *       different strategic angles, compared side by side before committing.
+ * LEARN MORE: docs/HOW_IT_WORKS.md → "Explore Mode: Pre-Decision Exploration"
+ */
+export async function generateWithFraming(
+  seed: Epic,
+  framingSystemAddendum: string,
+  candidatePath?: string
+): Promise<Epic> {
+  let epic: Epic;
+
+  if (settings.mockMode) {
+    // In mock mode, framing variations use the middle fixture as their starting point
+    // so all three variations aren't identical at iteration 0
+    epic = getMockEpic(1);
+  } else {
+    const raw = await callClaudeJson<unknown>({
+      // Append the framing instruction to the base system prompt
+      system: SYSTEM_PROMPT + "\n\n" + framingSystemAddendum,
+      userMessage: buildUserPrompt(seed, null),
+      maxTokens: 1500,
+    });
+    epic = parseEpic(raw);
+  }
+
+  writeCandidateFile(epic, candidatePath);
+  return epic;
 }
 
 // ─── Mock Fixtures ────────────────────────────────────────────────────────────

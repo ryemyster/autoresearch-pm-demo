@@ -1,4 +1,4 @@
-// Claude API wrapper — mirrors ascendvent-product-management/src/claude.ts exactly.
+// Claude API wrapper — two entry points for the demo.
 // Two functions: callClaude (raw text) and callClaudeJson<T> (parsed JSON).
 // Uses claude-haiku for speed/cost in the demo iteration loop.
 // Both the MCP layer and autoresearch layer import from here.

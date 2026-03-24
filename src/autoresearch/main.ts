@@ -5,24 +5,27 @@
 //     --idea-id <id> \
 //     --target-dir /absolute/path/to/project/docs \
 //     --iterations 3 \
-//     [--mock]
+//     [--git-mode]    ← enable git commit/revert cycle (the full Karpathy pattern)
+//     [--explore]     ← run 3 framings side-by-side, then pick the best
+//     [--yes]         ← skip the cost-confirmation prompt
+//     [--mock]        ← no API key needed, uses scripted fixtures
 //
-// Reads artifacts/epics/{ideaId}/raw.json (written by define_epic MCP tool).
-// Runs N iterations of generate → evaluate → iterate → select.
-// Injects best epic as {ideaId}-epic.md into target-dir.
-//
-// Teaching note: Set MOCK_LLM=true BEFORE importing config (config reads env at module load).
+// Teaching note: The env vars (MOCK_LLM, GIT_MODE, EXPLORE_MODE) MUST be set
+// before any imports, because config.ts reads them lazily at access time but
+// module-level code in imported files runs as soon as they are imported.
+// This is why the flag-setting block comes FIRST, before all import statements.
 
-// ── env must be set before any imports that read it ────────────────────────────
+// ── Set env vars BEFORE any imports ───────────────────────────────────────────
 const args = process.argv.slice(2);
-if (args.includes("--mock")) {
-  process.env.MOCK_LLM = "true";
-}
+if (args.includes("--mock"))     process.env.MOCK_LLM = "true";
+if (args.includes("--git-mode")) process.env.GIT_MODE = "true";
+if (args.includes("--explore"))  process.env.EXPLORE_MODE = "true";
 
+import * as readline from "readline";
 import chalk from "chalk";
-import { optimize } from "./loop.js";
-import { assertApiKey } from "../shared/config.js";
-import type { Epic, EvaluationResult } from "../shared/types/index.js";
+import { optimize, explore, injectVariation } from "./loop.js";
+import { assertApiKey, settings } from "../shared/config.js";
+import type { Epic, EvaluationResult, ExploreReport } from "../shared/types/index.js";
 
 // ─── Arg parsing ──────────────────────────────────────────────────────────────
 
@@ -31,10 +34,13 @@ function getArg(flag: string): string | undefined {
   return i !== -1 ? args[i + 1] : undefined;
 }
 
-const ideaId = getArg("--idea-id");
-const targetDir = getArg("--target-dir");
+const ideaId     = getArg("--idea-id");
+const targetDir  = getArg("--target-dir");
 const iterationsStr = getArg("--iterations");
-const mockMode = args.includes("--mock");
+const mockMode   = args.includes("--mock");
+const gitMode    = args.includes("--git-mode");
+const exploreMode = args.includes("--explore");
+const skipConfirm = args.includes("--yes");
 
 if (!ideaId || !targetDir) {
   console.error(chalk.red("Error: --idea-id and --target-dir are required."));
@@ -44,13 +50,69 @@ if (!ideaId || !targetDir) {
   console.error("    --idea-id <id> \\");
   console.error("    --target-dir /absolute/path/to/project/docs \\");
   console.error("    --iterations 3 \\");
-  console.error("    [--mock]");
+  console.error("    [--git-mode]    enable git commit/revert cycle");
+  console.error("    [--explore]     run 3 framings, pick the best");
+  console.error("    [--yes]         skip cost confirmation prompt");
+  console.error("    [--mock]        no API key needed (uses scripted fixtures)");
   process.exit(1);
 }
 
 const iterations = iterationsStr ? parseInt(iterationsStr, 10) : 3;
 
 if (!mockMode) assertApiKey();
+
+// ─── Cost Estimate ────────────────────────────────────────────────────────────
+
+/**
+ * WHAT: Prints an estimate of how many tokens this run will use and what it costs.
+ * WHY:  LLM API calls cost real money. Showing the estimate before any calls are
+ *       made gives the student a chance to abort if the number looks surprising.
+ *       It also teaches that every AI call has a cost — "tokens" are the unit of
+ *       work that the API charges for.
+ * LEARN MORE: docs/HOW_IT_WORKS.md → "Token Costs and Iteration Limits"
+ */
+function printCostEstimate(n: number, isExplore: boolean): void {
+  const variations = isExplore ? 3 : 1;
+  // Rough estimates per iteration:
+  //   Generator call: ~1500 output + ~500 input = ~2000 tokens
+  //   Evaluator call: ~300 output + ~300 input  = ~600 tokens
+  //   Total per iteration: ~2600 tokens
+  const tokensPerIteration = 2600;
+  // Explore mode has one extra "framing" call per variation (~2000 tokens each)
+  const framingTokens = isExplore ? 3 * 2000 : 0;
+  const totalTokens = n * tokensPerIteration * variations + framingTokens;
+  // Conservative blended cost: $0.001 per 1000 tokens (rounds up from haiku pricing)
+  const costDollars = (totalTokens / 1000) * 0.001;
+  const costCents = costDollars * 100;
+
+  console.log(chalk.dim("  Cost estimate (before any API calls are made):"));
+  if (isExplore) {
+    console.log(chalk.dim(`    3 framings × ${n} iterations × ~${tokensPerIteration} tokens + framing calls`));
+  } else {
+    console.log(chalk.dim(`    ${n} iteration(s) × ~${tokensPerIteration} tokens/iteration`));
+  }
+  console.log(chalk.dim(`    Total: ~${totalTokens.toLocaleString()} tokens`));
+  if (costCents < 1) {
+    console.log(chalk.dim(`    Estimated cost: < $0.01 (less than one cent)`));
+  } else {
+    console.log(chalk.dim(`    Estimated cost: ~$${costDollars.toFixed(3)} USD`));
+  }
+}
+
+/**
+ * WHAT: Asks "Continue? [y/N]" in the terminal and waits for the user to type.
+ * WHY:  A simple confirmation before spending money on API calls. The --yes flag
+ *       skips this for users who already know what they're doing.
+ */
+async function promptConfirm(message: string): Promise<boolean> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(`${message} [y/N] `, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+    });
+  });
+}
 
 // ─── Display Helpers ──────────────────────────────────────────────────────────
 
@@ -92,29 +154,74 @@ function printEpicSummary(epic: Epic, score: number): void {
   console.log(chalk.dim("  score: ") + chalk.bold(`${score}/10`));
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+/**
+ * WHAT: Prints a side-by-side comparison table of all 3 explore mode variations.
+ * WHY:  The PM needs to see all options at once to make an informed choice.
+ *       This is the "PM chooses from strong candidates" step in the workflow.
+ */
+function printExploreTable(report: ExploreReport): void {
+  console.log("");
+  console.log(chalk.bold("Variation comparison:"));
+  console.log(chalk.dim("  #   Framing              Score   Title"));
+  console.log(chalk.dim("  ─────────────────────────────────────────────────────────────────────────"));
+  for (const v of report.variations) {
+    const num = chalk.bold(String(v.variationIndex + 1));
+    const label = v.framingLabel.padEnd(20);
+    const score = `${v.bestScore}/10`.padEnd(7);
+    const scoreStr = v.bestScore >= 8 ? chalk.green(score) : v.bestScore >= 5 ? chalk.yellow(score) : chalk.red(score);
+    const title = v.best.title.slice(0, 45) + (v.best.title.length > 45 ? "…" : "");
+    console.log(`  ${num}   ${chalk.dim(label)}  ${scoreStr}  ${title}`);
+  }
+  console.log(chalk.dim("  ─────────────────────────────────────────────────────────────────────────"));
+  console.log(chalk.dim(`  Recommended: #${report.recommendedIndex + 1} (${report.variations[report.recommendedIndex].framingLabel}) scored highest.`));
+}
 
-console.log("");
-console.log(chalk.bold("Autoresearch PM Demo") + chalk.dim(" — Layer 2: Optimization Loop"));
-console.log(chalk.dim(`  idea: ${ideaId}`));
-console.log(chalk.dim(`  target: ${targetDir}`));
-console.log(chalk.dim(`  iterations: ${iterations}${mockMode ? " (mock mode)" : ""}`));
+/**
+ * WHAT: Prompts the user to pick a number (1, 2, or 3) from the explore table.
+ * WHY:  The PM is the decision-maker — the system surfaces options with scores,
+ *       but the human picks. Pressing Enter accepts the recommended option.
+ */
+async function promptVariationChoice(count: number, recommendedIndex: number): Promise<number> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(
+      chalk.bold(`  Which variation to inject? [1-${count}, Enter = ${recommendedIndex + 1}]: `),
+      (answer) => {
+        rl.close();
+        const trimmed = answer.trim();
+        if (!trimmed) {
+          resolve(recommendedIndex);
+          return;
+        }
+        const parsed = parseInt(trimmed, 10);
+        if (parsed >= 1 && parsed <= count) {
+          resolve(parsed - 1); // convert to 0-based index
+        } else {
+          console.log(chalk.yellow(`  Invalid choice — using recommended #${recommendedIndex + 1}`));
+          resolve(recommendedIndex);
+        }
+      }
+    );
+  });
+}
 
-await optimize(ideaId, targetDir, iterations, {
-  onIterationStart(i, total) {
+// ─── Shared Callbacks ─────────────────────────────────────────────────────────
+// These callbacks are used by BOTH optimize() and explore() mode.
+
+const sharedCallbacks = {
+  onIterationStart(i: number, total: number) {
     console.log("");
     console.log(chalk.cyan(`Iteration ${i}/${total}`) + chalk.dim(" ────────────────────────────────────────────────"));
     process.stdout.write(chalk.dim("  Generating epic..."));
   },
-  onGenerated(_epic) {
+  onGenerated(_epic: Epic) {
     process.stdout.write(chalk.dim(" Evaluating...\n"));
   },
-  onEvaluated(result, isBest, bestScore) {
+  onEvaluated(result: EvaluationResult, isBest: boolean, bestScore: number) {
     printScoreTable(result);
     const totalStr = `  Score: ${result.total}/10`;
     const bestStr = `  Best so far: ${bestScore}/10`;
-    const newBestStr = isBest ? chalk.green("  ✓ New best!") : "";
-    console.log(chalk.bold(totalStr) + "   " + chalk.dim(bestStr) + (isBest ? "  " + newBestStr : ""));
+    console.log(chalk.bold(totalStr) + "   " + chalk.dim(bestStr) + (isBest ? "  " + chalk.green("  ✓ New best!") : ""));
 
     if (result.improvementHints.length > 0) {
       console.log("");
@@ -124,21 +231,90 @@ await optimize(ideaId, targetDir, iterations, {
       }
     }
   },
-  onComplete(best, bestResult, runDir, injectedPath) {
+  onComplete(best: Epic, bestResult: EvaluationResult, runDir: string, injectedPath: string) {
     console.log("");
     console.log(chalk.bold.green("RESULT") + chalk.dim(" ─────────────────────────────────────────────────────────────"));
     printEpicSummary(best, bestResult.total);
     console.log("");
     console.log(chalk.dim("  Artifacts saved to:"), chalk.cyan(runDir));
-    console.log(chalk.dim("  ├── manifest.json"));
-    for (let i = 0; i < iterations; i++) {
-      console.log(chalk.dim(`  ├── iteration_${i}.json`));
-    }
-    console.log(chalk.dim("  └── best.json"));
-    console.log("");
-    console.log(chalk.bold.green("  Epic injected to:"), chalk.cyan(injectedPath));
+    console.log(chalk.dim("  Epic injected to:"), chalk.cyan(injectedPath));
     console.log("");
     console.log(chalk.dim("  Layer 3 → In your target project, run:"), chalk.bold("/build-from-epic"));
     console.log("");
   },
-});
+  // Git mode callbacks
+  onGitCommit(iteration: number, score: number, message: string) {
+    console.log(chalk.dim(`  git commit: "${message}"`));
+  },
+  onGitRevert(iteration: number, previousBest: number, newScore: number) {
+    console.log(chalk.yellow(`  git revert: score ${newScore}/10 < best ${previousBest}/10 — discarding this iteration`));
+  },
+  onGitLog(entries: string[]) {
+    console.log("");
+    console.log(chalk.bold("Experiment log (git):"));
+    console.log(chalk.dim("  Every attempt is recorded here — including the ones that were discarded."));
+    console.log(chalk.dim("  This is the experiment record. More valuable than just the final result."));
+    console.log("");
+    for (const entry of entries) {
+      console.log(chalk.dim("  " + entry));
+    }
+    console.log("");
+    console.log(chalk.dim("  LEARN MORE: docs/HOW_IT_WORKS.md → 'The Experiment Log as Strategic Asset'"));
+  },
+  // Explore mode callbacks
+  onExploreVariationStart(variationIndex: number, framingLabel: string) {
+    console.log("");
+    console.log(
+      chalk.bold.cyan(`Variation ${variationIndex + 1}/3: "${framingLabel}"`) +
+      chalk.dim(" ─────────────────────────────────────────────────────────")
+    );
+  },
+};
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+console.log("");
+console.log(chalk.bold("Autoresearch PM Demo") + chalk.dim(" — Layer 2: Optimization Loop"));
+console.log(chalk.dim(`  idea:       ${ideaId}`));
+console.log(chalk.dim(`  target:     ${targetDir}`));
+console.log(chalk.dim(`  iterations: ${iterations}${exploreMode ? " × 3 variations" : ""}${mockMode ? " (mock)" : ""}${gitMode ? " (git mode)" : ""}`));
+
+// Show cost estimate and confirm before making any API calls
+if (!mockMode) {
+  printCostEstimate(iterations, exploreMode);
+  console.log("");
+  if (!skipConfirm) {
+    const ok = await promptConfirm(chalk.bold("  Proceed?"));
+    if (!ok) {
+      console.log(chalk.dim("  Aborted. Use --mock to try for free, or --yes to skip this prompt."));
+      process.exit(0);
+    }
+  }
+}
+
+if (exploreMode) {
+  // ── Explore mode: 3 framings, side-by-side comparison ─────────────────────
+  const report = await explore(ideaId, targetDir, iterations, {
+    ...sharedCallbacks,
+    onExploreComplete(report) {
+      printExploreTable(report);
+    },
+  });
+
+  // Let the PM pick which variation to inject
+  const chosenIndex = await promptVariationChoice(report.variations.length, report.recommendedIndex);
+  const chosen = report.variations[chosenIndex];
+
+  console.log("");
+  console.log(chalk.bold.green(`  Injecting variation #${chosenIndex + 1} (${chosen.framingLabel})...`));
+  const injectedPath = injectVariation(report, chosenIndex, targetDir);
+
+  console.log(chalk.dim("  Epic injected to:"), chalk.cyan(injectedPath));
+  console.log("");
+  console.log(chalk.dim("  Layer 3 → In your target project, run:"), chalk.bold("/build-from-epic"));
+  console.log("");
+
+} else {
+  // ── Normal mode (and git mode) ─────────────────────────────────────────────
+  await optimize(ideaId, targetDir, iterations, sharedCallbacks);
+}

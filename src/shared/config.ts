@@ -1,6 +1,16 @@
-// Settings read once from environment variables at startup.
+// Settings read from environment variables at access time (lazy getters).
 // Shared by both the MCP layer and the autoresearch CLI.
-// Set MOCK_LLM=true to run without an API key (uses deterministic fixtures).
+//
+// Teaching note: Settings are lazy getters, not values set once at startup.
+// This matters because main.ts sets env vars like MOCK_LLM=true BEFORE
+// any modules import this file. Lazy getters see those changes; eager values would not.
+//
+// Environment variables you can set:
+//   MOCK_LLM=true     → no API key needed, uses scripted fixtures
+//   GIT_MODE=true     → enables git commit/revert cycle (the Karpathy pattern)
+//   EXPLORE_MODE=true → runs 3 framings and lets PM pick (pre-decision exploration)
+//   MODEL=...         → override the Claude model (default: haiku)
+//   ARTIFACTS_ROOT=.. → override where artifacts/ lives (default: project root)
 
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -14,15 +24,18 @@ export interface Settings {
   model: string;
   mockMode: boolean;
   artifactsRoot: string;
+  gitMode: boolean; // true when --git-mode flag is passed: enables git commit/revert cycle
+  exploreMode: boolean; // true when --explore flag is passed: runs 3 framings for comparison
 }
 
-// Settings are read lazily via getters so that process.env.MOCK_LLM set by CLI
-// args in main.ts is visible even though ES module imports resolve before top-level code.
 export const settings: Settings = {
   get apiKey() { return process.env.ANTHROPIC_API_KEY ?? ""; },
   get model() { return process.env.MODEL ?? "claude-haiku-4-5-20251001"; },
   get mockMode() { return process.env.MOCK_LLM === "true"; },
   get artifactsRoot() { return process.env.ARTIFACTS_ROOT ?? path.join(PROJECT_ROOT, "artifacts"); },
+  // These two are set by CLI flag parsing in main.ts before any imports run:
+  get gitMode() { return process.env.GIT_MODE === "true"; },
+  get exploreMode() { return process.env.EXPLORE_MODE === "true"; },
 };
 
 export function assertApiKey(): void {
