@@ -6,6 +6,18 @@
 //
 // Reads validated_problem context from prior step automatically.
 // Writes next template for define_epic.
+//
+// Arcade MCP Design Patterns demonstrated in this file:
+//   Context Injection — The tool automatically loads the validated_problem from the prior
+//                       step. The agent doesn't need to pass it explicitly — the tool finds
+//                       it from the idea_id and injects it into the prompt.
+//                       See: https://www.arcade.dev/patterns#context-injection
+//   Operation Mode    — Same two-mode pattern as validate_problem: preflight then full analysis.
+//                       Consistent patterns across tools reduce the agent's cognitive load.
+//                       See: https://www.arcade.dev/patterns#operation-mode
+//   Dependency Hint   — Error message "Run validate_problem first" guides the agent to the
+//                       correct sequence without external orchestration.
+//                       See: https://www.arcade.dev/patterns#dependency-hint
 
 import { callClaudeJson } from "../../shared/claude.js";
 import {

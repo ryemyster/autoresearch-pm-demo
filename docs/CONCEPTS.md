@@ -79,9 +79,12 @@ By default, Claude can read and write text. With MCP tools, you can extend it �
 > **Analogy:** Think of MCP tools like apps on a phone. A new phone can make calls and send texts. But you add apps to give it new abilities — maps, a camera, a calculator. MCP tools are apps for Claude.
 
 In this demo, the MCP server adds three tools to Claude:
+
 - `validate_problem` — helps you stress-test whether your problem is real
 - `prioritize_opportunities` — helps you pick the best approach
 - `define_epic` — writes a structured plan for the work
+
+How you *design* MCP tools determines how well the agent uses them. The best reference for this is **[arcade.dev/patterns](https://www.arcade.dev/patterns)** — a catalog of 44 MCP tool design patterns. The tools in this demo deliberately implement five of them. See `docs/HOW_IT_WORKS.md → "MCP Tool Design"` for a walkthrough.
 
 ---
 

@@ -475,6 +475,98 @@ Every stage outputs a file. Every stage is inspectable. Nothing is hidden.
 
 ---
 
+## MCP Tool Design
+
+The Discovery stage uses three MCP tools. Each tool is a callable unit that Claude invokes directly from the chat interface. How you design those tools determines how reliably the agent uses them.
+
+The best reference for MCP tool design patterns is **[arcade.dev/patterns](https://www.arcade.dev/patterns)**. Their guiding principle:
+
+> *"Your agents are only as good as your tools."*
+
+Well-designed tools keep orchestration simple. Poorly designed tools force the agent to guess — which it does inconsistently.
+
+This project deliberately demonstrates five patterns from the Arcade catalog.
+
+---
+
+### Pattern 1: Operation Mode
+
+**What it is:** One tool, two behaviors, controlled by a single boolean flag.
+
+**Where:** All three Discovery tools use `proceed: boolean`.
+
+| Call | `proceed` value | What happens |
+| ---- | --------------- | ------------ |
+| First | omitted | Lightweight preflight — surfaces gaps, asks 3 questions |
+| Second | `true` + `session_notes` | Full analysis — expensive, conclusive, writes artifact |
+
+**Why:** The agent can ask clarifying questions before spending tokens on a full analysis. The two-call pattern is consistent across all three tools, so the agent learns it once and applies it everywhere.
+
+Reference: [arcade.dev/patterns#operation-mode](https://www.arcade.dev/patterns#operation-mode)
+
+---
+
+### Pattern 2: Context Injection
+
+**What it is:** The tool automatically loads prior-stage output. The agent doesn't have to pass it explicitly.
+
+**Where:** `prioritize_opportunities` loads `validated_problem` from the idea artifact. `define_epic` loads both `validated_problem` and `priorities`.
+
+**Why:** Reduces the burden on the agent. Instead of maintaining and passing a growing context object, the agent just passes `idea_id` — the tool handles the rest.
+
+Reference: [arcade.dev/patterns#context-injection](https://www.arcade.dev/patterns#context-injection)
+
+---
+
+### Pattern 3: Dependency Hint
+
+**What it is:** Error messages and descriptions tell the agent what to call first — without requiring external orchestration.
+
+**Where:** `prioritize_opportunities` throws: *"No idea_id found. Run validate_problem first or pass idea_id."*
+
+**Why:** Agents follow error message guidance. If the error message says "call X first," the agent calls X. This is simpler than encoding the sequence in a separate orchestrator.
+
+Reference: [arcade.dev/patterns#dependency-hint](https://www.arcade.dev/patterns#dependency-hint)
+
+---
+
+### Pattern 4: Tool Chain (visible handoff)
+
+**What it is:** The tool explicitly surfaces the next step by returning a `next_step` field — a copy-pasteable CLI command.
+
+**Where:** `define_epic` returns:
+
+```text
+next_step: "npx tsx src/autoresearch/main.ts --idea-id abc123 --target-dir ..."
+```
+
+**Why:** The handoff from MCP tools to the autoresearch CLI is the most important transition in the pipeline. Making it a visible string — not hidden logic — means the user can see it, copy it, and understand exactly what happens next.
+
+Reference: [arcade.dev/patterns#tool-chain](https://www.arcade.dev/patterns#tool-chain)
+
+---
+
+### Pattern 5: Recovery Guide
+
+**What it is:** Every error message is actionable. It tells the agent what to do, not just what went wrong.
+
+**Where:** All three tools. Examples:
+
+- `"Pass a problem_statement to start, or drop a template in artifacts/working/."`
+- `"Idea 'xyz' not found. Run validate_problem first."`
+
+**Why:** Agents retry based on error messages. "Something went wrong" produces a useless retry. "Pass a problem_statement" produces a correct retry.
+
+Reference: [arcade.dev/patterns#recovery-guide](https://www.arcade.dev/patterns#recovery-guide)
+
+---
+
+### Where to go deeper
+
+The full Arcade pattern catalog covers 44 patterns across 10 categories — tool interface, composition, execution, output, resilience, security, and more. This project demonstrates 5. If you're building MCP tools for production use, [arcade.dev/patterns](https://www.arcade.dev/patterns) is the reference to bookmark.
+
+---
+
 ## Code Annotations: Which File Implements Which Concept
 
 | Concept | File |

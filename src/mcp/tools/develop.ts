@@ -7,6 +7,20 @@
 //
 // This makes the stage boundary a visible, teachable moment:
 //   MCP tool output → "next_step: npx tsx src/autoresearch/main.ts --idea-id ..."
+//
+// Arcade MCP Design Patterns demonstrated in this file:
+//   Context Injection — Automatically loads validated_problem + priorities from prior steps.
+//                       The agent passes only idea_id; the tool assembles the full context.
+//                       See: https://www.arcade.dev/patterns#context-injection
+//   Tool Chain        — define_epic explicitly defines the next step in the sequence by
+//                       returning a `next_step` CLI command string. The handoff between
+//                       MCP tools and the autoresearch CLI is a visible, copy-pasteable
+//                       instruction — not hidden logic.
+//                       See: https://www.arcade.dev/patterns#tool-chain
+//   Resource Reference — The tool saves artifacts to disk and returns file paths
+//                       (epic_path, next_step). The agent gets a reference to the result,
+//                       not the full artifact embedded in the response.
+//                       See: https://www.arcade.dev/patterns#resource-reference
 
 import { callClaudeJson } from "../../shared/claude.js";
 import {

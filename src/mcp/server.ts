@@ -1,11 +1,33 @@
-// MCP server — registers all 3 discovery tools.
-// Registers 3 discovery tools + inject_artifact utility.
+// MCP server — registers all 3 discovery tools + inject_artifact utility.
 //
 // Tools:
-//   validate_problem       (Discover: stress-test the problem hypothesis)
+//   validate_problem         (Discover: stress-test the problem hypothesis)
 //   prioritize_opportunities (Design: ICE score and pick top opportunity)
-//   define_epic            (Develop: synthesize Epic from prior context → seeds autoresearch)
-//   inject_artifact        (Utility: push any content to a target project directory)
+//   define_epic              (Develop: synthesize Epic from prior context → seeds autoresearch)
+//   inject_artifact          (Utility: push any content to a target project directory)
+//
+// Arcade MCP Design Patterns used in this server:
+//   Tool Description   — Each description is written for the LLM, not humans. It includes
+//                        when to call the tool, what it returns, and sequencing guidance.
+//                        See: https://www.arcade.dev/patterns#tool-description
+//   Dependency Hint    — Error messages and descriptions tell agents what to call first
+//                        ("Run validate_problem first"). Agents follow this guidance
+//                        without needing external orchestration.
+//                        See: https://www.arcade.dev/patterns#dependency-hint
+//   Operation Mode     — validate_problem / prioritize_opportunities / define_epic each
+//                        operate in two modes: preflight (no proceed) and full analysis
+//                        (proceed=true). One tool, two behaviors, controlled by a single flag.
+//                        See: https://www.arcade.dev/patterns#operation-mode
+//   Discovery Tool     — validate_problem + prioritize_opportunities + define_epic together
+//                        form a discovery sequence: each one reveals constraints and context
+//                        that the next tool needs. The agent discovers what it needs to know
+//                        before committing to a direction.
+//                        See: https://www.arcade.dev/patterns#discovery-tool
+//   Recovery Guide     — All error messages are actionable: they tell the agent exactly
+//                        what to do next ("Pass a problem_statement to start").
+//                        See: https://www.arcade.dev/patterns#recovery-guide
+//
+// LEARN MORE: docs/HOW_IT_WORKS.md → "MCP Tool Design"
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";

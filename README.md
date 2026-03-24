@@ -104,7 +104,14 @@ Each handoff between stages is a **file** — something you can open, read, and 
 | -------- | ----------- |
 | [docs/CONCEPTS.md](docs/CONCEPTS.md) | Plain-English explanations of AI, Claude, MCP, terminals, and Node.js |
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Full step-by-step tutorial from zero to running the demo |
+| [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | Deep dive: Karpathy pattern, MCP tool design, all five pipeline stages |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and how to fix them |
+
+### Key external resources
+
+| Resource | What it is |
+| -------- | ---------- |
+| [arcade.dev/patterns](https://www.arcade.dev/patterns) | The definitive catalog of MCP tool design patterns — 44 patterns across 10 categories. The Discovery tools in this project implement 5 of them. Start here if you're building your own MCP tools. |
 
 ---
 

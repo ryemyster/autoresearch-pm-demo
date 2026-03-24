@@ -6,6 +6,23 @@
 //
 // On full analysis: writes next phase template to artifacts/working/
 // so the user can immediately drop into prioritize_opportunities.
+//
+// Arcade MCP Design Patterns demonstrated in this file:
+//   Operation Mode    — The `proceed` boolean creates two distinct modes from one tool.
+//                       Omitting `proceed` runs a lightweight preflight (fast, low-cost).
+//                       `proceed=true` runs the full analysis (expensive, conclusive).
+//                       This lets the agent gather info before committing to a costly call.
+//                       See: https://www.arcade.dev/patterns#operation-mode
+//   Smart Defaults    — `proceed` is optional and defaults to preflight behavior.
+//                       `context` and `idea_id` are optional — the tool works with just a
+//                       problem_statement. Fewer required fields = easier for agents to call.
+//                       See: https://www.arcade.dev/patterns#smart-defaults
+//   Recovery Guide    — Errors tell the agent exactly what to do:
+//                       "Pass a problem_statement to start, or drop a template in artifacts/working/"
+//                       See: https://www.arcade.dev/patterns#recovery-guide
+//   Dependency Hint   — On success, the tool writes a next-phase template so the agent
+//                       knows to call prioritize_opportunities next (no guessing required).
+//                       See: https://www.arcade.dev/patterns#dependency-hint
 
 import { callClaudeJson } from "../../shared/claude.js";
 import {
