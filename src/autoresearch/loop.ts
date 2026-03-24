@@ -79,7 +79,7 @@ function epicsDir(ideaId: string): string {
 }
 
 function runsDir(runId: string): string {
-  return path.join(settings.artifactsRoot, "runs", runId);
+  return path.join(settings.artifactsRoot, "git-runs", runId);
 }
 
 function writeJson(filePath: string, data: unknown): void {
@@ -296,7 +296,7 @@ export async function optimize(
   let candidatePath: string | undefined;
 
   if (settings.gitMode) {
-    // The git repo lives in artifacts/runs/{runId}/ — NOT the project root
+    // The git repo lives in artifacts/git-runs/{runId}/ — NOT the project root
     // This scopes each experiment's git history to its own folder
     gitRoot = runsDir(runId);
     candidatePath = path.join(gitRoot, "candidate.json");

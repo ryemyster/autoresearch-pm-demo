@@ -162,7 +162,7 @@ This is the "single modifiable file" concept: **one real file on disk, edited ea
 ### Where is it?
 
 - Normal mode: `artifacts/epics/{idea-id}/candidate.json`
-- Git mode: `artifacts/runs/{run-id}/candidate.json`
+- Git mode: `artifacts/git-runs/{run-id}/candidate.json`
 
 ### How to inspect it
 
@@ -232,13 +232,13 @@ Every attempt is visible. The dead ends are part of the record.
 
 > **[For developers]** This section explains a technical design choice. You don't need to understand it to use the demo — just know that git mode works safely without affecting any other git repository you have.
 
-When you enable `--git-mode`, a git repository is created inside `artifacts/runs/{run-id}/` — **not in the project root folder.**
+When you enable `--git-mode`, a git repository is created inside `artifacts/git-runs/{run-id}/` — **not in the project root folder.**
 
 Why? A few reasons:
 
 1. **The project might already be a git repo.** If it is, creating a nested git repo inside it causes problems.
 
-2. **Each experiment's history should be self-contained.** If you delete `artifacts/runs/my-run-123/`, the git history for that run goes with it. Clean and contained.
+2. **Each experiment's history should be self-contained.** If you delete `artifacts/git-runs/my-run-123/`, the git history for that run goes with it. Clean and contained.
 
 3. **Only `candidate.json` is tracked.** The git repo inside the run folder only ever contains `candidate.json`. The iteration log files, manifests, and everything else are in `artifacts/epics/{id}/` — outside git's scope. This mirrors the pattern: one file, tracked. Everything else, untracked.
 
@@ -363,7 +363,7 @@ This is an honest comparison. The project matches the pattern's spirit but makes
 | Article | This project | Why |
 | ------- | ------------ | --- |
 | Agent edits code files | Agent edits Epic JSON | Epics are a better teaching artifact for PMs |
-| Git on project root | Git scoped to `artifacts/runs/` | Safer — avoids conflicts with the project's own git |
+| Git on project root | Git scoped to `artifacts/git-runs/` | Safer — avoids conflicts with the project's own git |
 | 100+ iterations overnight | Default: 3 iterations | Cost and time limits for a teaching demo |
 | Evaluation via test suite | Evaluation via rubric + LLM | No existing test suite for an epic — rubric is explicit |
 | Self-modifying agent | Loop calls Claude as a tool | Simpler architecture, easier to understand |

@@ -1,0 +1,21 @@
+# Dependabot keeps your npm dependencies up to date automatically.
+# It checks for new versions of packages in package.json and opens a pull request
+# for each update — so you see what changed and can review before merging.
+#
+# schedule.interval: "weekly" means it checks once a week (Monday by default).
+# This is a good default for a demo project — frequent enough to stay current,
+# not so frequent that you're flooded with PRs.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Group all patch and minor updates into a single PR to reduce noise.
+    # Breaking (major) version bumps still get their own PR so you notice them.
+    groups:
+      patch-and-minor:
+        update-types:
+          - "minor"
+          - "patch"

@@ -7,7 +7,7 @@
 // was kept vs. thrown away.
 //
 // IMPORTANT: All operations are scoped to a gitRoot directory you pass in.
-// The git repo lives inside artifacts/runs/{runId}/ — NOT the project root.
+// The git repo lives inside artifacts/git-runs/{runId}/ — NOT the project root.
 // This keeps each experiment's history self-contained and deletable.
 //
 // LEARN MORE: docs/HOW_IT_WORKS.md → "The Git Revert Pattern"
