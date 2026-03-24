@@ -181,8 +181,8 @@ npm run build
 If you see errors, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#cannot-find-module).
 
 > **What does "build" mean?** TypeScript needs to be translated before it can run. `npm run build` does that translation and puts the result in a `dist/` folder. You only need to run this once (or again after making code changes). See [CONCEPTS.md → What is TypeScript?](CONCEPTS.md#what-is-typescript)
-
-> **Something broken after an update?** If the project stopped working after you pulled new changes, the compiled files in `dist/` may be out of date. Run this to delete them and rebuild from scratch — `npm run clean` deletes the `dist/` folder, `npm run build` recreates it fresh. Think of it like clearing your browser's cache.
+>
+> **Want to start completely fresh?** Run `npm run clean` to delete both the `dist/` folder (compiled code) and the `artifacts/` folder (output from previous demo runs), then `npm run build` to rebuild. Think of it like clearing your browser's cache — old saved files can cause problems, and starting fresh fixes them.
 
 ```bash
 npm run clean && npm run build
