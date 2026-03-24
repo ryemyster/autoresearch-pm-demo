@@ -1,4 +1,4 @@
-// prioritize_opportunities — Layer 1 MCP tool (Design stage)
+// prioritize_opportunities — Discovery MCP tool (Design stage)
 //
 // Two-call pattern:
 //   Call 1 (no proceed): preflight → questions about opportunities

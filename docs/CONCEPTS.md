@@ -101,11 +101,11 @@ You install Claude Code as an extension in VS Code. The Getting Started guide wa
 
 Here's the whole picture in everyday language:
 
-1. **You describe a problem** to Claude using special tools (Layer 1). Claude asks you questions, then writes a first draft of a plan.
+1. **You describe a problem** to Claude using special tools (Discovery stage). Claude asks you questions, then writes a first draft of a plan.
 
-2. **A program runs automatically** (Layer 2). It reads that plan, writes an improved version, scores it, then writes another improved version. It does this 3 times and keeps the best one.
+2. **A program runs automatically** (Epic Refinement Loop — using the Autoresearch pattern). It reads that plan, writes an improved version, scores it, then writes another improved version. It does this 3 times and keeps the best one.
 
-3. **Claude reads the final plan** and starts writing code (Layer 3). It knows exactly what to build because the plan is structured and specific.
+3. **Claude reads the final plan** and starts writing code (Build stage). It knows exactly what to build because the plan is structured and specific.
 
 Every step saves a file to your computer. You can open those files and see exactly what happened.
 

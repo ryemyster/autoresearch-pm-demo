@@ -4,7 +4,7 @@ description: Run the validation loop to check whether the code satisfies the epi
 
 You are running the **Validation Loop** (Layer 5 of the autoresearch pipeline).
 
-This loop closes the circle: it reads the `success_metrics` from the epic that Layer 2 wrote, and checks whether the code actually satisfies each one.
+This loop closes the circle: it reads the `success_metrics` from the epic that the Epic Refinement Loop wrote, and checks whether the code actually satisfies each one.
 
 The score here is a **pass rate**: how many of the epic's metrics does the code satisfy?
 - 10/10 = all metrics pass — the code is "done" as defined by the plan

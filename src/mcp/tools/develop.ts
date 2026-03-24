@@ -1,11 +1,11 @@
-// define_epic — Layer 1 MCP tool (Develop stage) + inject_artifact utility
+// define_epic — Discovery MCP tool (Develop stage) + inject_artifact utility
 //
-// define_epic is the BRIDGE between Layer 1 (MCP discovery) and Layer 2 (autoresearch).
+// define_epic is the BRIDGE between the Discovery stage (MCP tools) and the Epic Refinement Loop.
 // It synthesizes validated_problem + priorities into a structured Epic, saves it to
 // artifacts/epics/{ideaId}/raw.json, and returns a next_step command string showing
 // exactly how to invoke the autoresearch CLI.
 //
-// This makes the layer boundary a visible, teachable moment:
+// This makes the stage boundary a visible, teachable moment:
 //   MCP tool output → "next_step: npx tsx src/autoresearch/main.ts --idea-id ..."
 
 import { callClaudeJson } from "../../shared/claude.js";
@@ -116,7 +116,7 @@ export async function defineEpic(input: DefineEpicInput): Promise<DefineEpicOutp
 
   // The next_step message is the teachable moment — it shows exactly how to hand off to autoresearch
   const nextStep = [
-    `Layer 1 complete. Raw epic saved to: ${epicPath}`,
+    `Discovery complete. Raw epic saved to: ${epicPath}`,
     ``,
     `Next → Run the autoresearch loop to refine and score the epic:`,
     `  npx tsx src/autoresearch/main.ts \\`,

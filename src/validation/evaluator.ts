@@ -1,10 +1,10 @@
 // validation/evaluator.ts — validates code against the epic's success_metrics.
 //
-// Teaching note: This is the "closes the loop" layer.
-// Layer 2 created a plan with success_metrics.
-// Layer 3 wrote code to implement the plan.
-// Layer 4 (code quality) cleaned up the code.
-// NOW Layer 5 (validation) asks: "Does the code actually satisfy the metrics?"
+// Teaching note: This is the "closes the loop" stage.
+// The Epic Refinement Loop created a plan with success_metrics.
+// The Build stage wrote code to implement the plan.
+// The Code Quality Loop (using Autoresearch pattern) cleaned up the code.
+// NOW the Validation Loop (using Autoresearch pattern) asks: "Does the code actually satisfy the metrics?"
 //
 // How it works:
 //   1. Read the epic markdown and extract each success_metric
@@ -26,8 +26,8 @@ import type { ValidationResult, TestResult } from "../shared/types/index.js";
 
 /**
  * WHAT: Parses the success_metrics table out of an epic markdown file.
- * WHY:  The epic markdown was written in Layer 2. We extract the metrics
- *       to use them as test specifications in Layer 5.
+ * WHY:  The epic markdown was written by the Epic Refinement Loop. We extract
+ *       the metrics to use them as test specifications in the Validation Loop.
  *       The plan defines "done" — we just read it.
  */
 function parseSuccessMetrics(

@@ -1,4 +1,4 @@
-// Autoresearch CLI — entry point for all loops (Layers 2, Code Quality, Validation).
+// Autoresearch CLI — entry point for all loops (Epic Refinement, Code Quality, Validation).
 //
 // Usage:
 //   npx tsx src/autoresearch/main.ts \
@@ -59,8 +59,8 @@ if (!ideaId || !targetDir) {
   console.error("    --idea-id <id> \\");
   console.error("    --target-dir /absolute/path/to/project/docs \\");
   console.error("    --iterations 3 \\");
-  console.error("    [--git-mode]                enable git commit/revert cycle (Layer 2)");
-  console.error("    [--explore]                 run 3 framings, pick the best (Layer 2)");
+  console.error("    [--git-mode]                enable git commit/revert cycle (Epic Refinement Loop)");
+  console.error("    [--explore]                 run 3 framings, pick the best (Epic Refinement Loop)");
   console.error("    [--code-quality]            run code quality loop (requires --target-file)");
   console.error("    [--validate]                run validation loop   (requires --target-file)");
   console.error("    [--target-file /path/to/file.ts]  code file to improve");
@@ -298,7 +298,7 @@ const sharedCallbacks = {
     console.log(chalk.dim("  Artifacts saved to:"), chalk.cyan(runDir));
     console.log(chalk.dim("  Epic injected to:"), chalk.cyan(injectedPath));
     console.log("");
-    console.log(chalk.dim("  Layer 3 → In your target project, run:"), chalk.bold("/build-from-epic"));
+    console.log(chalk.dim("  Build → In your target project, run:"), chalk.bold("/build-from-epic"));
     console.log("");
   },
   // Git mode callbacks
@@ -356,7 +356,7 @@ if (!mockMode) {
 }
 
 // Determine the epic path for code quality and validation modes
-// The epic is in targetDir as {ideaId}-epic.md (injected by Layer 2)
+// The epic is in targetDir as {ideaId}-epic.md (injected by the Epic Refinement Loop)
 const epicPath = targetDir ? `${targetDir}/${ideaId}-epic.md` : "";
 
 if (validationMode) {
@@ -467,7 +467,7 @@ if (validationMode) {
 
   console.log(chalk.dim("  Epic injected to:"), chalk.cyan(injectedPath));
   console.log("");
-  console.log(chalk.dim("  Layer 3 → In your target project, run:"), chalk.bold("/build-from-epic"));
+  console.log(chalk.dim("  Build → In your target project, run:"), chalk.bold("/build-from-epic"));
   console.log("");
 
 } else {

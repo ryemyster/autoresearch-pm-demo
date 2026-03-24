@@ -353,7 +353,7 @@ None of these are limitations — they're intentional design choices for a teach
 
 ## The Code Quality Loop
 
-After Layer 3 writes code, the next question is: is that code actually good?
+After the Build stage writes code, the next question is: is that code actually good?
 
 "Good" here means four things:
 
@@ -366,9 +366,9 @@ There's a fifth criterion: **epic alignment** — does the code actually impleme
 
 ### The same pattern, different artifact
 
-The code quality loop is structurally identical to the Layer 2 optimization loop:
+The code quality loop is structurally identical to the Epic Refinement Loop (both use the Autoresearch pattern):
 
-| Layer 2 (epic optimization) | Code Quality Loop |
+| Epic Refinement Loop | Code Quality Loop (Autoresearch pattern) |
 | --- | --- |
 | Reads current epic from `raw.json` | Reads current code from target file |
 | Calls `generate()` → improved epic | Calls `improveCode()` → improved code |
@@ -459,15 +459,15 @@ Or in Claude Code: `/run-validation` after `/run-code-quality`.
 ### The complete pipeline
 
 ```text
-Layer 1: validate_problem → prioritize_opportunities → define_epic
+Discovery: validate_problem → prioritize_opportunities → define_epic
               ↓ raw.json (seed epic)
-Layer 2: autoresearch loop (--iterations 3)
+Epic Refinement Loop (Autoresearch pattern): --iterations 3
               ↓ {idea-id}-epic.md (polished plan)
-Layer 3: /build-from-epic
+Build: /build-from-epic
               ↓ code files
-Code Quality Loop: --code-quality (--iterations 3)
+Code Quality Loop (Autoresearch pattern): --code-quality --iterations 3
               ↓ improved code
-Validation Loop: --validate (--iterations 3)
+Validation Loop (Autoresearch pattern): --validate --iterations 3
               ↓ all metrics pass → done
 ```
 
@@ -492,7 +492,7 @@ Every stage outputs a file. Every stage is inspectable. Nothing is hidden.
 | The validation loop | `src/validation/loop.ts` |
 | Settings (all mode flags) | `src/shared/config.ts` |
 | Data shapes for all concepts | `src/shared/types/index.ts` |
-| Layer 1 MCP tools | `src/mcp/tools/` |
-| Layer 3 build skill | `.claude/commands/build-from-epic.md` |
+| Discovery MCP tools | `src/mcp/tools/` |
+| Build skill | `.claude/commands/build-from-epic.md` |
 | Code quality skill | `.claude/commands/run-code-quality.md` |
 | Validation skill | `.claude/commands/run-validation.md` |

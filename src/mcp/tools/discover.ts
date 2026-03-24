@@ -1,4 +1,4 @@
-// validate_problem — Layer 1 MCP tool (Discover stage)
+// validate_problem — Discovery MCP tool (Discover stage)
 //
 // Two-call pattern (mirrors founder-os exactly):
 //   Call 1 (proceed omitted): preflight gap check → 3 questions → saves session

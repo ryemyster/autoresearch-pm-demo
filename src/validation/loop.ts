@@ -1,9 +1,9 @@
 // validation/loop.ts — the validation loop: tests code against the epic's success metrics.
 //
 // Teaching note: This is the final loop in the pipeline, and it closes the circle.
-// The epic was written in Layer 1. The autoresearch loop scored it in Layer 2.
-// Layer 3 built code from it. Layer 4 (code quality) cleaned up the code.
-// Layer 5 (validation) asks the final question: "Does the code pass the epic's own metrics?"
+// The epic was written in Discovery. The Epic Refinement Loop scored and improved it.
+// The Build stage wrote code from it. The Code Quality Loop (using Autoresearch pattern) cleaned up the code.
+// The Validation Loop (using Autoresearch pattern) asks the final question: "Does the code pass the epic's own metrics?"
 //
 // The score here is NOT a quality score — it's a PASS RATE.
 // passCount / totalMetrics * 10 = final score.

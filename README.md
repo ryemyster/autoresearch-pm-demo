@@ -39,7 +39,7 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────┐
-│  LAYER 1: You talk to AI tools                                        │
+│  DISCOVERY: You talk to AI tools                                      │
 │                                                                       │
 │  validate_problem → prioritize_opportunities → define_epic            │
 │                                                                       │
@@ -50,8 +50,8 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
                            │  plan file (raw.json)
                            ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  LAYER 2: A program improves the plan in a loop         [--git-mode] │
-│                                                         [--explore]  │
+│  EPIC REFINEMENT LOOP (Autoresearch pattern)    [--git-mode]         │
+│                                                 [--explore]          │
 │  generate → score → improve → repeat (3 times)                       │
 │                                                                       │
 │  No human involved. Each version gets a score out of 10.             │
@@ -61,7 +61,7 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
                            │  polished plan ({id}-epic.md)
                            ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  LAYER 3: AI reads the plan and starts coding                         │
+│  BUILD: AI reads the plan and starts coding                           │
 │                                                                       │
 │  /build-from-epic                                                     │
 │                                                                       │
@@ -72,11 +72,11 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
                            │  code files
                            ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  CODE QUALITY LOOP: Improve the code in a loop    [--code-quality]   │
+│  CODE QUALITY LOOP (Autoresearch pattern)       [--code-quality]     │
 │                                                                       │
 │  /run-code-quality                                                    │
 │                                                                       │
-│  Same autoresearch pattern as Layer 2, but applied to code.          │
+│  Same Autoresearch pattern, applied to code.                         │
 │  Scores: no lint errors, no security issues, readability,            │
 │  test coverage, epic alignment. Rewrites code to fix failures.       │
 │  Output: improved code file                                          │
@@ -84,7 +84,7 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
                            │  improved code
                            ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  VALIDATION LOOP: Check code against epic metrics      [--validate]  │
+│  VALIDATION LOOP (Autoresearch pattern)         [--validate]         │
 │                                                                       │
 │  /run-validation                                                      │
 │                                                                       │
@@ -128,12 +128,14 @@ Want to go further? Try running the loop on a real problem you're working on. Us
 
 ## For developers
 
-The source lives in `src/` with three folders mirroring the three layers:
+The source lives in `src/` with folders mirroring the pipeline stages:
 
 ```text
 src/
-├── mcp/          # Layer 1: MCP server (Claude Code tools)
-├── autoresearch/ # Layer 2: optimization loop CLI
+├── mcp/          # Discovery: MCP server (Claude Code tools)
+├── autoresearch/ # Epic Refinement Loop: autoresearch CLI
+├── code-quality/ # Code Quality Loop: code improvement loop
+├── validation/   # Validation Loop: metric validation loop
 └── shared/       # Types, config, Claude SDK wrapper
 ```
 

@@ -1,10 +1,10 @@
 ---
-description: Run the code quality improvement loop on the implementation that Layer 3 just built. Use after /build-from-epic.
+description: Run the code quality improvement loop (using Autoresearch pattern) on the implementation that the Build stage just produced. Use after /build-from-epic.
 ---
 
 You are running the **Code Quality Loop** (Layer 4 of the autoresearch pipeline).
 
-This loop takes the code that Layer 3 wrote and applies the same autoresearch pattern to it:
+This loop takes the code that the Build stage wrote and applies the same Autoresearch pattern to it:
 - Generate an improved version of the code
 - Score it on 5 criteria (no lint errors, no security issues, readability, test coverage intent, epic alignment)
 - Keep the best version, discard worse ones

@@ -93,7 +93,7 @@ If that shows TypeScript errors, look at the error message — it usually points
 **This is expected behavior at high scores.** Once a plan scores 8 or 9 out of 10, there isn't much left to improve. The hints get more subtle and the LLM may not act on them consistently.
 
 **If the score is stuck at a low number (below 5):**
-- The seed plan from Layer 1 may be too vague. Go back and run `define_epic` again with more specific answers in `session_notes`.
+- The seed plan from Discovery may be too vague. Go back and run `define_epic` again with more specific answers in `session_notes`.
 - Check `artifacts/epics/<id>/iteration_0.json` — the `improvementHints` field shows exactly what was passed to the next iteration. If the hints are vague, the improvements will be vague.
 
 ---

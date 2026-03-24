@@ -1,4 +1,4 @@
-// loop.ts — Layer 2 core: the optimization loop.
+// loop.ts — Epic Refinement Loop core: the autoresearch optimization loop.
 //
 // Teaching note: This file owns the full generate → evaluate → select cycle.
 // It now supports three modes:
@@ -88,8 +88,8 @@ function writeJson(filePath: string, data: unknown): void {
 }
 
 /**
- * WHAT: Formats a finished epic as a markdown file ready for Layer 3 to read.
- * WHY:  The handoff between layers is always a file — inspectable, readable by
+ * WHAT: Formats a finished epic as a markdown file ready for the Build stage to read.
+ * WHY:  The handoff between stages is always a file — inspectable, readable by
  *       a human or by Claude Code's /build-from-epic skill.
  */
 function formatEpicAsMarkdown(epic: Epic, score: number, ideaId: string): string {
@@ -130,10 +130,10 @@ function formatEpicAsMarkdown(epic: Epic, score: number, ideaId: string): string
 // ─── loadSeed() — shared by optimize() and explore() ─────────────────────────
 
 /**
- * WHAT: Loads the raw epic seed from Layer 1's output file. Falls back to a
- *       mock fixture if running in mock mode and no file exists.
+ * WHAT: Loads the raw epic seed from the Discovery stage's output file. Falls back
+ *       to a mock fixture if running in mock mode and no file exists.
  * WHY:  The seed is what the loop starts from. A good seed (from define_epic)
- *       means iteration 0 starts well above zero — the MCP work is already
+ *       means iteration 0 starts well above zero — the Discovery work is already
  *       baked in. Without a seed, the loop starts from scratch.
  */
 async function loadSeed(ideaId: string): Promise<Epic> {
@@ -301,7 +301,7 @@ export async function optimize(
   // Persist final outputs
   writeJson(path.join(runDir, "best.json"), { epic: best, result: bestResult });
 
-  // INJECT: push best epic as markdown into target project (Layer 2 → Layer 3 handoff)
+  // INJECT: push best epic as markdown into target project (Epic Refinement → Build handoff)
   const filename = `${ideaId}-epic.md`;
   const markdown = formatEpicAsMarkdown(best, bestResult.total, ideaId);
   const injectedPath = injectArtifact(targetDir, filename, markdown);
@@ -416,7 +416,7 @@ export async function explore(
  *       markdown into the target project (same as optimize() does).
  * WHY:  Separated from explore() so the caller can prompt the user for a choice
  *       before injecting. The inject step is the point of no return — once
- *       injected, Layer 3 can run on it.
+ *       injected, the Build stage can run on it.
  */
 export function injectVariation(
   report: ExploreReport,

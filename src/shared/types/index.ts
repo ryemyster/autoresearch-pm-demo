@@ -155,12 +155,12 @@ export interface ExploreReport {
   recommendedIndex: number; // index (0-2) of the highest-scoring variation
 }
 
-// ─── Layer 4: Code Quality Loop ───────────────────────────────────────────────
-// Layer 4 applies the same autoresearch pattern to CODE instead of plans.
-// After Layer 3 writes code, Layer 4 improves it in a loop — scoring quality,
+// ─── Code Quality Loop ────────────────────────────────────────────────────────
+// The Code Quality Loop applies the same autoresearch pattern to CODE instead of plans.
+// After the Build stage writes code, this loop improves it — scoring quality,
 // security, readability, and whether it actually does what the epic asked for.
 //
-// LEARN MORE: docs/HOW_IT_WORKS.md → "Layer 4: The Code Quality Loop"
+// LEARN MORE: docs/HOW_IT_WORKS.md → "The Code Quality Loop"
 
 /**
  * The result of evaluating one version of a code file.
@@ -247,7 +247,7 @@ export interface ValidationIterationLog {
   isBest: boolean;
 }
 
-// ─── Layer 2 LLM scoring (kept here for proximity) ────────────────────────────
+// ─── Epic Refinement Loop LLM scoring (kept here for proximity) ───────────────
 
 // Shape returned by the batched LLM scoring call in evaluator.ts
 export interface LLMScoringResponse {

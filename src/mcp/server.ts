@@ -28,7 +28,7 @@ export function createServer(): McpServer {
   // ── validate_problem ──────────────────────────────────────────────────────
   server.tool(
     "validate_problem",
-    "LAYER 1 — DISCOVER: Stress-test your problem hypothesis before defining any solution. " +
+    "DISCOVERY — DISCOVER: Stress-test your problem hypothesis before defining any solution. " +
     "Use twice: first without proceed (get questions), then with proceed=true + session_notes (full analysis).",
     {
       problem_statement: z.string().optional().describe("The problem you think exists. Required on first call unless idea_id is provided."),
@@ -43,7 +43,7 @@ export function createServer(): McpServer {
   // ── prioritize_opportunities ───────────────────────────────────────────────
   server.tool(
     "prioritize_opportunities",
-    "LAYER 1 — DESIGN: ICE score opportunities and identify the highest-value one to pursue. " +
+    "DISCOVERY — DESIGN: ICE score opportunities and identify the highest-value one to pursue. " +
     "Reads validated_problem automatically. Use twice: preflight then proceed=true.",
     {
       idea_id: z.string().optional().describe("Idea ID from validate_problem output."),
@@ -57,8 +57,8 @@ export function createServer(): McpServer {
   // ── define_epic ────────────────────────────────────────────────────────────
   server.tool(
     "define_epic",
-    "LAYER 1 — DEVELOP: Synthesize validated research into a structured Epic. " +
-    "BRIDGE to Layer 2: saves raw.json and returns next_step CLI command for autoresearch. " +
+    "DISCOVERY — DEVELOP: Synthesize validated research into a structured Epic. " +
+    "BRIDGE to Epic Refinement Loop: saves raw.json and returns next_step CLI command for autoresearch. " +
     "Use twice: preflight then proceed=true.",
     {
       idea_id: z.string().optional().describe("Idea ID from earlier tools."),

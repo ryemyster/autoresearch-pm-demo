@@ -152,7 +152,7 @@ npx tsx src/autoresearch/main.ts \
 **Expected output:**
 
 ```text
-Autoresearch PM Demo — Layer 2: Optimization Loop
+Autoresearch PM Demo — Epic Refinement Loop
   idea: test-idea
   iterations: 3
   mode: mock
@@ -179,7 +179,7 @@ The scores go up because mock mode uses scripted fixtures that improve each iter
 cat /tmp/demo-target/test-idea-epic.md
 ```
 
-That's the finished plan file — the output of Layer 2. It's readable text that a human or AI can understand.
+That's the finished plan file — the output of the Epic Refinement Loop. It's readable text that a human or AI can understand.
 
 ---
 
@@ -232,7 +232,7 @@ If you see `disconnected`, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#mcp-serve
 
 ---
 
-## Step 11: Layer 1 — Talk to the AI tools
+## Step 11: Discovery — Talk to the AI tools
 
 Open Claude Code in VS Code (click the Claude icon in the sidebar, or open a chat panel).
 
@@ -293,7 +293,7 @@ Use prioritize_opportunities with:
 
 ### Tool 3: `define_epic`
 
-This writes the first draft of the plan. It bridges Layer 1 and Layer 2.
+This writes the first draft of the plan. It bridges Discovery and the Epic Refinement Loop.
 
 ```
 Use define_epic with:
@@ -310,7 +310,7 @@ Use define_epic with:
   session_notes: "Focus on the usage dashboard. Team: 2 engineers, 1 designer. Timeline: one quarter."
 ```
 
-**The response includes a `next_step` field** — a terminal command to run Layer 2. Copy it.
+**The response includes a `next_step` field** — a terminal command to run the Epic Refinement Loop. Copy it.
 
 You can also inspect the raw plan that was saved:
 
@@ -320,7 +320,7 @@ cat artifacts/epics/<your-idea-id>/raw.json
 
 ---
 
-## Step 12: Layer 2 — Run the optimization loop
+## Step 12: Epic Refinement Loop — Run the autoresearch loop
 
 > **What does this cost?** Before the loop starts making API calls, it prints a cost estimate. For 3 iterations with the default model (claude-haiku), expect less than $0.01. You'll be asked to confirm before anything is charged. You can always use `--mock` to test the full flow for free.
 
@@ -410,7 +410,7 @@ Press Enter to use the recommended variation, or type a number to pick a differe
 
 ---
 
-## Step 13: Layer 3 — Build from the plan
+## Step 13: Build — Build from the plan
 
 Open the target project (the folder you pointed `--target-dir` at) in VS Code with Claude Code active.
 
@@ -434,7 +434,7 @@ Claude will:
 
 ## Step 14: Code Quality Loop — improve the code
 
-After Layer 3 writes code, the code quality loop applies the same autoresearch pattern to the code itself: score it, improve it, repeat.
+After the Build stage writes code, the Code Quality Loop applies the same Autoresearch pattern to the code itself: score it, improve it, repeat.
 
 In Claude Code, run:
 
@@ -544,9 +544,9 @@ Here's the whole pipeline in one sentence per stage:
 
 | Stage | What happened |
 | ----- | ------------- |
-| Layer 1 | You described a problem, an AI asked clarifying questions, and together you produced a rough plan |
-| Layer 2 | A program ran a loop: it rewrote the plan, scored it, and kept improving it until the score was high |
-| Layer 3 | An AI read the finished plan and started writing real code |
+| Discovery | You described a problem, an AI asked clarifying questions, and together you produced a rough plan |
+| Epic Refinement Loop | A program ran a loop (Autoresearch pattern): it rewrote the plan, scored it, and kept improving it until the score was high |
+| Build | An AI read the finished plan and started writing real code |
 | Code Quality | The same loop pattern improved the code: no security issues, clean types, tests present |
 | Validation | The code was checked against the epic's success metrics — all passed |
 
@@ -556,9 +556,9 @@ Every step saved a file. You can open `artifacts/` to see every version of every
 
 ## Offline demo (no API key at all)
 
-If you just want to explore the system without any account or API key, you already did this in Step 8. Mock mode runs the full Layer 2 loop with scripted responses — scores go 2 → 7 → 9 across three iterations.
+If you just want to explore the system without any account or API key, you already did this in Step 8. Mock mode runs the full Epic Refinement Loop with scripted responses — scores go 2 → 7 → 9 across three iterations.
 
-You can also skip Layer 1 entirely and create a fake seed file:
+You can also skip Discovery entirely and create a fake seed file:
 
 ```bash
 mkdir -p artifacts/epics/my-test/

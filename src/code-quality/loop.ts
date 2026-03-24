@@ -56,7 +56,7 @@ function parseEpicOutcome(epicMarkdownPath: string): string {
 
 /**
  * WHAT: Saves one iteration's result to disk as a JSON log file.
- * WHY:  Same reason as Layer 2 iteration logs — the experiment record.
+ * WHY:  Same reason as Epic Refinement Loop iteration logs — the experiment record.
  *       You can open iteration_0.json and iteration_2.json and diff the hints
  *       to see whether the loop actually addressed the feedback.
  */
@@ -73,13 +73,13 @@ function saveIterationLog(
 
 /**
  * WHAT: Runs the code quality improvement loop for N iterations.
- * WHY:  This is Layer 4's version of optimize() from src/autoresearch/loop.ts.
+ * WHY:  This is the Code Quality Loop's version of optimize() from src/autoresearch/loop.ts.
  *       It runs the same generate → evaluate → select cycle, but on code.
  *       At the end, the best version of the code is written back to targetFile.
  * LEARN MORE: docs/HOW_IT_WORKS.md → "The Code Quality Loop"
  */
 export async function runCodeQuality(
-  targetFile: string,     // path to the code file to improve (from Layer 3 output)
+  targetFile: string,     // path to the code file to improve (from the Build stage output)
   epicPath: string,       // path to the *-epic.md file (to check epic alignment)
   ideaId: string,         // used for artifact directory naming
   iterations: number,
@@ -87,7 +87,7 @@ export async function runCodeQuality(
 ): Promise<{ bestCode: string; bestResult: CodeQualityResult; log: CodeIterationLog[] }> {
   // Read the current code from disk — this is iteration 0's starting point
   if (!fs.existsSync(targetFile)) {
-    throw new Error(`Target file not found: ${targetFile}. Run Layer 3 (/build-from-epic) first.`);
+    throw new Error(`Target file not found: ${targetFile}. Run /build-from-epic (Build stage) first.`);
   }
   const initialCode = fs.readFileSync(targetFile, "utf-8");
 

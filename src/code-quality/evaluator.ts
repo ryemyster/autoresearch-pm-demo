@@ -3,7 +3,7 @@
 // Teaching note: This is the SAME pattern as src/autoresearch/evaluator.ts,
 // but applied to CODE instead of product plans.
 // The Karpathy insight generalises: any artifact you can score can be improved in a loop.
-// Layer 2 (autoresearch) scores epics. The code quality loop scores code.
+// The Epic Refinement Loop scores epics. The code quality loop scores code.
 //
 // Each criterion has two checks:
 //   1. Rule check  — deterministic (no API call, instant, free)
