@@ -4,6 +4,8 @@ This document explains the ideas behind this project — not just what the code 
 
 Start here if you want to understand the system deeply. If you just want to run it, start with [GETTING_STARTED.md](GETTING_STARTED.md).
 
+> **Reading guide:** Most sections are written for everyone. A few sections go deep into code and are marked **[For developers]** — you can skip those safely if you're not a programmer and still understand the full picture.
+
 ---
 
 ## The Big Idea
@@ -65,50 +67,62 @@ The pain isn't "my doc reads poorly." The pain is "we keep committing to the wro
 
 ## The Karpathy Pattern (Six Properties)
 
-The Karpathy autoresearch pattern is named after Andrej Karpathy, who described using AI agents to run hundreds of improvement experiments overnight. The pattern has six required properties.
+The Karpathy autoresearch pattern is named after Andrej Karpathy, a well-known AI researcher who described using AI agents to run hundreds of improvement experiments overnight — automatically, without human supervision between attempts. The pattern has six required properties.
 
-### Analogy: The Spelling Bee Trainer
+### Analogy: The Chef Perfecting a Recipe
 
-Imagine a spelling bee coach who trains a student automatically:
+Imagine a chef trying to perfect a recipe — but instead of one trial per night, they run dozens automatically:
 
-1. Student practices one word at a time (**single modifiable file**)
-2. Gets immediate pass/fail on each word (**numerical score**)
-3. Coach records each attempt: correct attempts stay, wrong ones are noted (**git commit/revert**)
-4. Trainer runs sessions while the student sleeps (**runs autonomously**)
-5. After 100 attempts, you can see every word tried, in order (**experiment log**)
-6. The trainer's scoring rules can't be changed mid-session (**read-only evaluator**)
+1. The chef works from **one recipe card** — edits it each round, never starts from scratch (**single modifiable file**)
+2. A food critic scores each batch **out of 10** with specific notes: "too salty, needs acid" (**numerical score**)
+3. Better batch? **Keep the updated recipe card.** Worse batch? **Throw it out and go back to the previous version** — but photograph the bad batch so you know what was tried (**git-based revert**)
+4. The chef runs trials **overnight while you sleep** — you come back to results in the morning (**runs autonomously**)
+5. Every version tried — kept and discarded — is saved as a **photo album of attempts** (**experiment log**)
+6. The critic's scoring rubric **never changes mid-session** — the chef can't win by convincing the critic to lower the bar (**read-only evaluator**)
 
-That's the pattern. Applied to product epics instead of spelling words.
+That's the pattern. In this project, the "recipe card" is a product plan (an epic), and Claude plays both roles — chef (improves it) and critic (scores it) — but the scoring criteria are locked and can't be modified from inside the loop.
 
 ### The Six Properties
 
 **1. Single modifiable file**
-One file is edited each round. Not a variable in memory — a real file on disk. This makes every change inspectable. You can open it, read it, diff it.
+One file is edited each round. Not a variable in memory — a real file on disk. This makes every change inspectable. You can open it, read it, compare two versions.
 
-In this project: `candidate.json` — written after every `generate()` call.
+*Like the chef:* one recipe card, edited each trial — not a new card from scratch every time.
+
+In this project: `candidate.json` — updated after every improvement attempt.
 
 **2. Git-based revert**
 If a new version scores worse than the current best, undo it. But don't silently discard it — record that you tried it. Git's `revert` command creates a new commit that undoes the previous one, so the failed attempt is still visible in the log.
 
-In this project: enabled with `--git-mode`. See `src/autoresearch/git.ts`.
+*Like the chef:* bad batch? Go back to the previous recipe card — but photograph the bad one so you know what was tried.
+
+In this project: enabled with `--git-mode`. Every attempt, kept or discarded, is in the git log.
 
 **3. Read-only evaluator**
 The scoring rules cannot be changed by the agent doing the improving. If the agent could edit its own scoring criteria, it could "win" by lowering the bar — not by actually improving.
 
-In this project: `src/autoresearch/evaluator.ts` is never modified by the loop. The 5 criteria and their rules are hardcoded.
+*Like the chef:* the critic's rubric is fixed. The chef can't convince the critic to stop caring about saltiness.
+
+In this project: the 5 criteria and their rules are hardcoded and never touched by the loop.
 
 **4. Runs autonomously**
 The loop runs to completion without human input. You start it, walk away, come back to results.
 
-In this project: `--iterations N` runs all N iterations unattended. The default is 3 (cheap). Overnight runs use higher numbers.
+*Like the chef:* trials run overnight. You come back in the morning to see what worked.
+
+In this project: `--iterations N` runs all N iterations unattended. The default is 3 (fast, cheap). Real runs use 10–100.
 
 **5. Numerical score**
 The scoring is objective — a number, not a vague judgment. "Score: 7/10" is meaningful. "Pretty good" is not.
 
-In this project: `EvaluationResult.total` is 0-10. Each of 5 criteria scores 0-2. Both a rule check (deterministic) and an LLM check (semantic) contribute to each criterion.
+*Like the chef:* the critic gives a number, not vibes. You can compare two batches and know which is better.
+
+In this project: 0–10 score after every iteration. Each of 5 criteria contributes 0–2 points.
 
 **6. Experiment log as strategic asset**
 The log of every attempt — including the ones that were reverted — is more valuable than the final result alone. It tells you what was tried, what worked, and what the dead ends looked like.
+
+*Like the chef:* the full photo album of every tested batch is more valuable than just the final recipe. The failures tell you as much as the successes.
 
 In this project: `artifacts/epics/{id}/iteration_N.json` files. In git mode: `git log --oneline` shows every commit and revert.
 
@@ -118,12 +132,14 @@ In this project: `artifacts/epics/{id}/iteration_N.json` files. In git mode: `gi
 
 | Property | Status in this project | Where |
 | -------- | ---------------------- | ----- |
-| Single modifiable file | YES | `candidate.json` written by `generator.ts` |
-| Git-based revert | YES (with `--git-mode`) | `src/autoresearch/git.ts` |
-| Read-only evaluator | YES | `src/autoresearch/evaluator.ts` (never modified) |
-| Runs autonomously | YES | `loop.ts: optimize()` runs without user input |
-| Numerical score | YES | `EvaluationResult.total` (0-10) |
+| Single modifiable file | YES | `candidate.json` updated each round |
+| Git-based revert | YES (with `--git-mode`) | Every attempt recorded in git |
+| Read-only evaluator | YES | Scoring rules are fixed — the loop can't change them |
+| Runs autonomously | YES | Loop runs all iterations without user input |
+| Numerical score | YES | 0–10 score after every iteration |
 | Experiment log | YES | `iteration_N.json` files + git log in git mode |
+
+> **[For developers]** Source file locations: `candidate.json` ← `generator.ts`, git logic ← `src/autoresearch/git.ts`, evaluator ← `src/autoresearch/evaluator.ts`, loop ← `loop.ts: optimize()`.
 
 ---
 
@@ -131,19 +147,11 @@ In this project: `artifacts/epics/{id}/iteration_N.json` files. In git mode: `gi
 
 ### Why a file and not a variable?
 
-The simplest way to track "current best epic" would be a variable in memory:
+The simplest way to track "current best epic" would be to keep it in the program's memory — an invisible number or object the code holds while it runs. That works, but you can't open memory in a text editor, you can't compare two versions, and git can't track changes to it.
 
-```typescript
-let best = someEpic; // just a variable
-```
+Instead, this project writes the current best plan to a real file (`candidate.json`) after every iteration. You can open it in VS Code, read it, and see exactly what changed.
 
-That works, but it's invisible. Between iterations, you can't open it in a text editor, you can't diff it, and git can't track it.
-
-When we write to `candidate.json` instead:
-
-```typescript
-fs.writeFileSync(candidatePath, JSON.stringify(epic, null, 2));
-```
+> **[For developers]** In code: `let best = someEpic` (invisible) vs `fs.writeFileSync(candidatePath, JSON.stringify(epic, null, 2))` (a real file you can inspect with `git diff`).
 
 You can open the file in VS Code right now and read it. You can run `git diff` and see exactly what changed between iterations.
 
@@ -212,7 +220,9 @@ Every attempt is visible. The dead ends are part of the record.
 
 ---
 
-## Git Scope: Why Not the Project Root?
+## Git Scope: Why Not the Project Root? [For developers]
+
+> **[For developers]** This section explains a technical design choice. You don't need to understand it to use the demo — just know that git mode works safely without affecting any other git repository you have.
 
 When you enable `--git-mode`, a git repository is created inside `artifacts/runs/{run-id}/` — **not in the project root folder.**
 
@@ -289,13 +299,16 @@ This is the workflow shift in action: effort goes into defining what "good" look
 
 ## Token Costs and Iteration Limits
 
+> **This section only applies if you're using real mode with an API key.** Mock mode (`--mock`) is completely free and uses no tokens.
+
 ### What is a token?
 
-Tokens are the unit of work for an LLM API. Roughly:
+When you send text to Claude, it's broken into small chunks called **tokens** — roughly one word each. Claude charges based on how many tokens it processes. Roughly:
+
 - 1 token ≈ 4 characters of English text
 - 1000 tokens ≈ 750 words
 
-Every call to Claude uses tokens. You're billed per token used.
+The more tokens, the more it costs — but the costs are very small for this demo.
 
 ### Cost table for this demo
 
@@ -306,7 +319,7 @@ Every call to Claude uses tokens. You're billed per token used.
 | Explore | 3 per variation | ~31,800 | ~$0.03 |
 | Explore | 10 per variation | ~84,000 | ~$0.08 |
 
-These are estimates using claude-haiku, the fastest and cheapest model. Costs may vary.
+These are estimates using claude-haiku — the default model for this demo. Claude comes in several versions with different speeds and costs: Haiku is the fastest and cheapest, Sonnet is more capable, Opus is the most powerful. You can change the model in your `.env` file. Costs may vary.
 
 ### Why the default is 3, not 100
 
@@ -333,7 +346,9 @@ The `--yes` flag skips the confirmation prompt so it can run unattended.
 
 ---
 
-## Where This Project Diverges From the Article
+## Where This Project Diverges From the Original Pattern
+
+The Karpathy pattern was originally described in an article about using AI agents to autonomously improve code overnight. This project applies that same pattern to product planning instead of code — and makes a few intentional changes to make it easier to learn from.
 
 This is an honest comparison. The project matches the pattern's spirit but makes different choices for teachability:
 
@@ -459,23 +474,94 @@ Or in Claude Code: `/run-validation` after `/run-code-quality`.
 ### The complete pipeline
 
 ```text
-Discovery: validate_problem → prioritize_opportunities → define_epic
-              ↓ raw.json (seed epic)
-Epic Refinement Loop (Autoresearch pattern): --iterations 3
-              ↓ {idea-id}-epic.md (polished plan)
-Build: /build-from-epic
-              ↓ code files
-Code Quality Loop (Autoresearch pattern): --code-quality --iterations 3
-              ↓ improved code
-Validation Loop (Autoresearch pattern): --validate --iterations 3
-              ↓ all metrics pass → done
+  YOU
+   │  describe a problem
+   ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  DISCOVERY                                                            │
+│                                                                       │
+│  validate_problem → prioritize_opportunities → define_epic            │
+│                                                                       │
+│  You answer questions. Claude validates your idea and writes a        │
+│  first draft plan (an epic: problem, scope, success metrics).         │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │  saves: raw.json
+                                │
+                  (if plan is too vague, go back ↑)
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  EPIC REFINEMENT LOOP                  (Autoresearch pattern)        │
+│                                                                       │
+│    ┌──────────────────────────────────────────────┐                  │
+│    │  improve plan  →  score (0–10)               │                  │
+│    │                        │                      │                  │
+│    │          better? → keep new version           │                  │
+│    │          worse?  → revert to previous         │                  │
+│    │                        │                      │                  │
+│    │              repeat N times ─────────────────→┘                 │
+│    └──────────────────────────────────────────────┘                  │
+│  [--git-mode] records every attempt · [--explore] tries 3 framings   │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │  saves: {id}-epic.md
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  BUILD                                                                │
+│                                                                       │
+│  /build-from-epic  →  Claude reads the plan and writes code          │
+│  (one-time step — no loop)                                            │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │  saves: code files
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  CODE QUALITY LOOP                     (Autoresearch pattern)        │
+│                                                                       │
+│    ┌──────────────────────────────────────────────┐                  │
+│    │  improve code  →  score: lint? security?     │                  │
+│    │                   readable? tested? on-epic? │                  │
+│    │                        │                      │                  │
+│    │          better? → keep · worse? → revert     │                  │
+│    │                        │                      │                  │
+│    │              repeat N times ─────────────────→┘                 │
+│    └──────────────────────────────────────────────┘                  │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │  saves: improved code
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  VALIDATION LOOP                       (Autoresearch pattern)        │
+│                                                                       │
+│    ┌──────────────────────────────────────────────┐                  │
+│    │  check each success metric from the epic     │                  │
+│    │                        │                      │                  │
+│    │    metric passes? ✓    │    metric fails? ✗   │                  │
+│    │                        │         │             │                  │
+│    │                        │    improve code  ◄───┘ (feedback loop) │
+│    │                        │    re-check metric                      │
+│    │                        │                      │                  │
+│    │    score = passing metrics / total            │                  │
+│    │              repeat N times ─────────────────→┘                 │
+│    └──────────────────────────────────────────────┘                  │
+│                                                                       │
+│  "Done" is defined by the plan you wrote — not by whoever coded it.  │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │
+                                ▼
+                      ✓  ALL METRICS PASS
+
+Every stage saves a file. Every file is readable. Nothing is hidden.
 ```
 
-Every stage outputs a file. Every stage is inspectable. Nothing is hidden.
+**What the arrows show:**
+
+- Each loop has an **internal cycle** — it doesn't run once, it iterates
+- The Validation Loop has an extra **feedback path**: failures trigger code improvement, then re-check
+- Going back to an earlier stage (e.g. Discovery because the plan was wrong) is a **human decision** — the system never jumps back automatically
 
 ---
 
-## MCP Tool Design
+## MCP Tool Design [For developers and curious learners]
+
+> **Who this section is for:** If you used the tools in GETTING_STARTED.md and want to know *why* they were designed the way they were — or if you want to build your own MCP tools someday — this section is for you. If you just want to run the demo, you can skip it.
 
 The Discovery stage uses three MCP tools. Each tool is a callable unit that Claude invokes directly from the chat interface. How you design those tools determines how reliably the agent uses them.
 
@@ -567,7 +653,9 @@ The full Arcade pattern catalog covers 44 patterns across 10 categories — tool
 
 ---
 
-## Code Annotations: Which File Implements Which Concept
+## Code Annotations: Which File Implements Which Concept [For developers]
+
+> **[For developers]** This is a reference table mapping concepts to their source files. If you're not a programmer, you don't need this — everything the demo does is visible through the `artifacts/` folder output.
 
 | Concept | File |
 | ------- | ---- |

@@ -10,7 +10,7 @@ You describe a problem. An AI asks you questions. Then a program runs in a loop,
 
 ## What you'll learn
 
-- How to talk to an AI using tools (called **MCP tools**) from inside a code editor
+- How to talk to an AI using tools (called **MCP tools** — think of them like apps that give Claude new abilities) from inside a code editor
 - How an automated loop can improve a document by scoring it and rewriting it over and over
 - How a structured plan can be handed off to an AI to start building real software
 
@@ -37,64 +37,105 @@ Something broken? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ## How it works (the big picture)
 
+The pipeline has 5 stages. Three of them are **loops** — they run automatically, score their output, and improve it until the score is good enough. The other two are one-time steps driven by you or Claude.
+
 ```text
-┌──────────────────────────────────────────────────────────────────────┐
-│  DISCOVERY: You talk to AI tools                                      │
-│                                                                       │
-│  validate_problem → prioritize_opportunities → define_epic            │
-│                                                                       │
-│  You answer questions. AI validates your idea and writes a first      │
-│  draft plan (called an "epic").                                       │
-│  Output: a plan file saved to your computer                           │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │  plan file (raw.json)
-                           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  EPIC REFINEMENT LOOP (Autoresearch pattern)    [--git-mode]         │
-│                                                 [--explore]          │
-│  generate → score → improve → repeat (3 times)                       │
-│                                                                       │
-│  No human involved. Each version gets a score out of 10.             │
-│  The best version is saved as a readable document.                   │
-│  Output: a polished plan file in your project folder                 │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │  polished plan ({id}-epic.md)
-                           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  BUILD: AI reads the plan and starts coding                           │
-│                                                                       │
-│  /build-from-epic                                                     │
-│                                                                       │
-│  Claude Code reads the plan file, makes a task list, and begins      │
-│  implementing the feature.                                            │
-│  Output: code files in your project                                  │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │  code files
-                           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  CODE QUALITY LOOP (Autoresearch pattern)       [--code-quality]     │
-│                                                                       │
-│  /run-code-quality                                                    │
-│                                                                       │
-│  Same Autoresearch pattern, applied to code.                         │
-│  Scores: no lint errors, no security issues, readability,            │
-│  test coverage, epic alignment. Rewrites code to fix failures.       │
-│  Output: improved code file                                          │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │  improved code
-                           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  VALIDATION LOOP (Autoresearch pattern)         [--validate]         │
-│                                                                       │
-│  /run-validation                                                      │
-│                                                                       │
-│  Reads the success_metrics from the epic and checks each one.        │
-│  Score = how many metrics pass. Feeds failures back as hints.        │
-│  "Done" = all metrics pass — defined by the plan, not the coder.    │
-└──────────────────────────────────────────────────────────────────────┘
+  YOU
+   │
+   │  describe a problem
+   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  DISCOVERY                                                       │
+│                                                                  │
+│  validate_problem → prioritize_opportunities → define_epic       │
+│                                                                  │
+│  You answer questions. Claude validates your idea and writes     │
+│  a first draft plan (called an "epic" — a written spec for       │
+│  a feature: the problem, what to build, how to measure success). │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │  saves: raw.json (draft plan)
+                            │
+            ┌───────────────┘
+            │  (if the draft is too vague, go back to Discovery)
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  EPIC REFINEMENT LOOP          (Autoresearch pattern)            │
+│                                                                  │
+│    ┌─────────────────────────────────────────┐                  │
+│    │  generate improved plan                  │                  │
+│    │       ↓                                  │                  │
+│    │  score it  (0–10)                        │                  │
+│    │       ↓                                  │                  │
+│    │  better than before? → keep it           │                  │
+│    │  worse than before?  → revert, try again │                  │
+│    │       ↓                                  │                  │
+│    │  repeat N times  ──────────────────────→ ┘                 │
+│    └─────────────────────────────────────────┘                  │
+│                                                                  │
+│  Options: [--git-mode] records every attempt in git             │
+│           [--explore]  runs 3 different framings, you pick one  │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │  saves: {id}-epic.md (polished plan)
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  BUILD                                                           │
+│                                                                  │
+│  /build-from-epic                                                │
+│                                                                  │
+│  Claude reads the plan and writes code.                          │
+│  One-time step — no automatic loop.                              │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │  saves: code files in your project
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CODE QUALITY LOOP         (Autoresearch pattern)                │
+│                                                                  │
+│    ┌─────────────────────────────────────────┐                  │
+│    │  improve code                            │                  │
+│    │       ↓                                  │                  │
+│    │  score it: lint? security? readable?     │                  │
+│    │            tests? matches the epic?      │                  │
+│    │       ↓                                  │                  │
+│    │  better? keep · worse? revert            │                  │
+│    │       ↓                                  │                  │
+│    │  repeat N times  ──────────────────────→ ┘                 │
+│    └─────────────────────────────────────────┘                  │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │  saves: improved code file
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  VALIDATION LOOP           (Autoresearch pattern)                │
+│                                                                  │
+│    ┌─────────────────────────────────────────┐                  │
+│    │  check each success metric from the epic │                  │
+│    │       ↓                                  │                  │
+│    │  pass? ✓  fail? → improve code + retry  │◄─┐               │
+│    │       ↓                                  │  │ feedback      │
+│    │  score = metrics passing / total         │  │ loop          │
+│    │       ↓                                  │  │               │
+│    │  repeat until all pass or N attempts  ───┘  │               │
+│    └──────────────────────────────────────────────┘              │
+│                                                                  │
+│  "Done" = all metrics pass — defined by the plan you wrote,     │
+│  not by whoever wrote the code.                                  │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+                    ✓  ALL METRICS PASS
 ```
 
-Each handoff between stages is a **file** — something you can open, read, and inspect. Nothing is hidden inside a black box.
+**Key things to notice:**
+
+- The three loops each have an **internal cycle** — they don't just run once, they iterate and improve.
+- The Validation Loop has an extra **feedback path**: when a metric fails, it improves the code and re-checks — all automatically.
+- Going back to an earlier stage (e.g. back to Discovery because the plan was wrong) is a **manual decision** — the system doesn't loop back automatically between stages.
+- Every handoff is a **file** you can open and read. Nothing is hidden.
+
+> **New to these terms?** An **epic** is a written plan for a feature: what problem it solves, what to build, and how to measure success. **Success metrics** are the measurable targets in that plan (e.g. "drop-off rate under 15%"). The validation loop uses those to know when the code is actually done.
 
 ---
 
@@ -111,25 +152,25 @@ Each handoff between stages is a **file** — something you can open, read, and 
 
 | Resource | What it is |
 | -------- | ---------- |
-| [arcade.dev/patterns](https://www.arcade.dev/patterns) | The definitive catalog of MCP tool design patterns — 44 patterns across 10 categories. The Discovery tools in this project implement 5 of them. Start here if you're building your own MCP tools. |
+| [arcade.dev/patterns](https://www.arcade.dev/patterns) | **For developers:** The definitive catalog of MCP tool design patterns — 44 patterns across 10 categories. The Discovery tools in this project implement 5 of them. Start here if you're building your own MCP tools. |
 
 ---
 
-## Why this matters for your AI PM career
+## Why this matters
 
-The hardest part of breaking into AI PM roles isn't content or certifications — it's demonstrable experience. Hiring managers want to see that you've actually shipped something with AI, not just read about it.
+**For anyone:** This demo shows you what AI can actually do — not a chatbot answering questions, but a program that runs a loop, scores its own work, and improves it automatically. You'll watch that happen step by step.
 
-This project gives you that. By the end of the demo you will have:
+**For product managers and career-changers:** The hardest part of moving into AI PM roles isn't content or certifications — it's demonstrable experience. Hiring managers want to see that you've actually shipped something with AI, not just read about it.
+
+By the end of the demo you will have:
 
 - **Used MCP tools** inside a real code editor to run a structured discovery process
-- **Watched an AI optimization loop** run autonomously, score its own output, and improve it
-- **Shipped a plan → code handoff** — a full 0-to-1 pipeline, even if it's a demo problem
+- **Watched an AI loop** run autonomously, score its own output, and improve it
+- **Seen a plan turn into code** — a full pipeline from idea to implementation
 
-That's not a course certificate. That's something you built and ran yourself.
+The deeper skill this teaches: **defining what "good" looks like so a system can explore options for you.** That's the shift from traditional work (write the plan yourself) to AI-native work (define the criteria, let the system generate candidates, you choose the best one).
 
-The deeper skill this teaches: **defining constraints so a system can explore options for you.** That's the shift from traditional PM work (write the doc) to AI-native PM work (define what "good" looks like, let the system generate candidates, you choose). The article that inspired this project calls it "pre-decision exploration under constraints."
-
-Want to go further? Try running the loop on a real problem you're working on. Use your own `--target-dir`. The output is a real plan file you could hand to an engineer tomorrow.
+Want to go further? Try running the loop on a real problem you're working on. Use your own `--target-dir`. The output is a real plan file you could hand to a developer tomorrow.
 
 ---
 
