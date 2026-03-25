@@ -152,6 +152,7 @@ Follow this path — in order:
 | 1 | [docs/CONCEPTS.md](docs/CONCEPTS.md) | Plain-English explanations of every term used in this project — AI, tokens, MCP, git, terminals. Read this first if anything sounds unfamiliar. |
 | 2 | [The PM example below ↓](#a-real-example-for-product-managers) | A worked scenario showing exactly how a PM would use this tool on a real problem, step by step. |
 | 3 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Install, run the demo, and see the loop in action. Takes about 30 minutes. |
+| 3a | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | Connect the AI tools to your editor or Claude Desktop (VS Code, Mac, Windows). Step-by-step with screenshots-level detail. |
 | 4 | [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | The core ideas — why loops beat one-shot generation, what the "governance model" means for PMs, how this changes your role. |
 | 5 | [docs/FEATURES.md](docs/FEATURES.md) | Every feature explained: explore mode, git mode, RAG, model routing, token costs. Bookmark this for when you want to try something new. |
 
@@ -163,6 +164,7 @@ Follow this path — in order:
 | [docs/FEATURES.md](docs/FEATURES.md) | Feature reference — RAG, explore mode, per-stage model routing, git mode, token costs |
 | [docs/FOR_DEVELOPERS.md](docs/FOR_DEVELOPERS.md) | Deep dives — eval design, MCP tool patterns, code annotations map |
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup and first run |
+| [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | Connect MCP tools to VS Code, Claude Desktop (Mac + Windows) |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and fixes |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Fork, branch, PR flow |
 
