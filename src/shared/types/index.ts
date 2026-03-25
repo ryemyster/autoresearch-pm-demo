@@ -122,6 +122,13 @@ export interface RunManifest {
   exploreMode: boolean; // was --explore enabled? (3-variation pre-decision exploration)
   candidatePath?: string; // path to candidate.json — the "single modifiable file"
   variationCount?: number; // how many framings were explored (explore mode only)
+  // RAG fields:
+  ragEnabled: boolean; // was --rag enabled for this run?
+  ragBackend?: string; // which backend was used ("chroma", "pinecone", etc.)
+  ragChunksRetrieved?: number; // total chunks retrieved across all iterations
+  // Model routing fields:
+  modelsEnabled: boolean; // was --models active for this run?
+  modelMap?: Record<string, string>; // stage → model string, snapshot taken at run start
 }
 
 // ─── Explore Mode: Pre-Decision Exploration ───────────────────────────────────

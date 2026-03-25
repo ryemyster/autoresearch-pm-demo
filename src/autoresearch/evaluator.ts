@@ -116,6 +116,7 @@ async function llmScoreAll(epic: Epic, iterationIndex: number): Promise<LLMScori
     system: LLM_SCORING_SYSTEM,
     userMessage: `EPIC TO EVALUATE:\n${JSON.stringify(epic, null, 2)}\n\nScore each criterion and return the JSON object.`,
     maxTokens: 600,
+    stageKey: "epic_evaluator",
   });
 }
 

@@ -29,13 +29,17 @@ An epic must have:
 OUTPUT FORMAT: A valid JSON object only. No markdown. No explanation outside the JSON.`;
 
 // ─── User Prompt Builder ──────────────────────────────────────────────────────
-function buildUserPrompt(seed: Epic, feedback: string[] | null): string {
+function buildUserPrompt(seed: Epic, feedback: string[] | null, retrievedContext: string | null = null): string {
+  const contextBlock = retrievedContext
+    ? `${retrievedContext}\n\n`
+    : "";
+
   const feedbackBlock =
     feedback && feedback.length > 0
       ? `\nIMPROVEMENT HINTS FROM PREVIOUS ITERATION:\n${feedback.map((h) => `- ${h}`).join("\n")}\n\nApply these hints to produce a better version of the epic.\n`
       : "";
 
-  return `CURRENT EPIC:
+  return `${contextBlock}CURRENT EPIC:
 ${JSON.stringify(seed, null, 2)}
 ${feedbackBlock}
 Return an improved version of this epic as a JSON object matching the same shape.`;
@@ -72,7 +76,8 @@ function writeCandidateFile(epic: Epic, candidatePath: string | undefined): void
 export async function generate(
   seed: Epic,
   feedback: string[] | null = null,
-  candidatePath?: string
+  candidatePath?: string,
+  retrievedContext: string | null = null
 ): Promise<Epic> {
   let epic: Epic;
 
@@ -81,8 +86,9 @@ export async function generate(
   } else {
     const raw = await callClaudeJson<unknown>({
       system: SYSTEM_PROMPT,
-      userMessage: buildUserPrompt(seed, feedback),
+      userMessage: buildUserPrompt(seed, feedback, retrievedContext),
       maxTokens: 1500,
+      stageKey: "epic_generator",
     });
     epic = parseEpic(raw);
   }
@@ -120,6 +126,7 @@ export async function generateWithFraming(
       system: SYSTEM_PROMPT + "\n\n" + framingSystemAddendum,
       userMessage: buildUserPrompt(seed, null),
       maxTokens: 1500,
+      stageKey: "epic_generator",
     });
     epic = parseEpic(raw);
   }

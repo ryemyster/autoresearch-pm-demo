@@ -93,6 +93,7 @@ export async function validateProblem(input: ValidateProblemInput): Promise<Vali
       system: VALIDATE_PROBLEM_PREFLIGHT_PROMPT,
       userMessage: context,
       maxTokens: 1024,
+      stageKey: "mcp_discovery",
     });
 
     const session: StageSession = {
@@ -127,6 +128,7 @@ export async function validateProblem(input: ValidateProblemInput): Promise<Vali
     system: VALIDATE_PROBLEM_PROMPT,
     userMessage: `${context}\n\n${sessionContext}\n\nApply the Problem Validation framework. Return JSON.`,
     maxTokens: 2048,
+    stageKey: "mcp_discovery",
   });
 
   idea.validated_problem = result.validated_problem;

@@ -83,6 +83,7 @@ export async function defineEpic(input: DefineEpicInput): Promise<DefineEpicOutp
       system: DEFINE_EPIC_PREFLIGHT_PROMPT,
       userMessage: context,
       maxTokens: 1024,
+      stageKey: "mcp_discovery",
     });
 
     const session: StageSession = {
@@ -117,6 +118,7 @@ export async function defineEpic(input: DefineEpicInput): Promise<DefineEpicOutp
     system: DEFINE_EPIC_PROMPT,
     userMessage: `${context}\n\n${sessionContext}\n\nGenerate the Epic Definition. Return JSON only.`,
     maxTokens: 2000,
+    stageKey: "mcp_discovery",
   });
 
   const epic = parseEpic(raw);

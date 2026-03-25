@@ -1,0 +1,6 @@
+{
+  "backend": "chroma",
+  "url": "http://localhost:8000",
+  "collection": "autoresearch",
+  "apiKey": ""
+}
