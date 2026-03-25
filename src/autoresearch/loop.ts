@@ -20,6 +20,8 @@ import { evaluate } from "./evaluator.js";
 import { gitInit, gitCommit, gitRevert, gitLog as getGitLog } from "./git.js";
 import { loadRawEpic, injectArtifact } from "../mcp/artifacts/store.js";
 import { settings } from "../shared/config.js";
+import { retrieveSemanticContext } from "../rag/retriever.js";
+import { STAGE_KEYS, resolveModel } from "../models/config.js";
 import type {
   Epic,
   EvaluationResult,
@@ -33,11 +35,23 @@ import type {
 // Callbacks let main.ts display progress without knowing loop internals.
 // New callbacks are optional so existing code that calls optimize() still works.
 
+// Stats passed to onComplete so the display layer has full context without
+// reading the manifest file.
+export interface RunStats {
+  initialScore: number;       // score of iteration 1 (the baseline)
+  finalScore: number;         // score of the best iteration
+  improvementDelta: number;   // finalScore − initialScore
+  actualIterations: number;   // how many iterations actually ran (may be < budget on early exit)
+  scoreProgression: number[]; // score of every iteration in order, e.g. [3, 8, 10]
+  reverts: number;            // how many iterations were reverted (git mode; 0 otherwise)
+  ragChunksRetrieved: number; // total RAG chunks retrieved across all iterations (0 if RAG off)
+}
+
 export interface LoopCallbacks {
   onIterationStart: (i: number, total: number) => void;
   onGenerated: (epic: Epic) => void;
   onEvaluated: (result: EvaluationResult, isBest: boolean, bestScore: number) => void;
-  onComplete: (best: Epic, bestResult: EvaluationResult, runDir: string, injectedPath: string) => void;
+  onComplete: (best: Epic, bestResult: EvaluationResult, runDir: string, injectedPath: string, stats: RunStats) => void;
   // Git mode callbacks (optional — only wired in main.ts when --git-mode is set)
   onGitCommit?: (iteration: number, score: number, message: string) => void;
   onGitRevert?: (iteration: number, previousBest: number, newScore: number) => void;
@@ -172,7 +186,7 @@ async function runIterations(
   callbacks: LoopCallbacks,
   gitRoot?: string,
   candidatePath?: string
-): Promise<{ best: Epic; bestResult: EvaluationResult; log: IterationLog[]; initialScore: number }> {
+): Promise<{ best: Epic; bestResult: EvaluationResult; log: IterationLog[]; initialScore: number; ragChunksRetrieved: number }> {
   const iterationLog: IterationLog[] = [];
   let current = seed;
   let best: Epic = seed;
@@ -180,13 +194,24 @@ async function runIterations(
   let bestScore = -1;
   let initialScore = 0;
   let previousHints: string[] | null = null;
+  let ragChunksRetrieved = 0;
 
   for (let i = 0; i < n; i++) {
     callbacks.onIterationStart(i + 1, n);
 
+    // RAG: retrieve external context before generating (optional, graceful on failure)
+    let retrievedContext: string | null = null;
+    if (settings.ragEnabled) {
+      retrievedContext = await retrieveSemanticContext(current, previousHints ?? []);
+      if (retrievedContext) {
+        // Count how many chunks were retrieved (each chunk is a [N] block)
+        ragChunksRetrieved += (retrievedContext.match(/^\[\d+\]/gm) ?? []).length;
+      }
+    }
+
     // GENERATE — produce an improved epic using the previous iteration's hints
     // candidatePath causes the epic to be written to disk (the "single modifiable file")
-    const epic = await generate(current, previousHints, candidatePath);
+    const epic = await generate(current, previousHints, candidatePath, retrievedContext);
     callbacks.onGenerated(epic);
 
     // EVALUATE first — we need the score to write a meaningful commit message
@@ -259,7 +284,7 @@ async function runIterations(
     if (bestScore === 10) break;
   }
 
-  return { best, bestResult: bestResult!, log: iterationLog, initialScore };
+  return { best, bestResult: bestResult!, log: iterationLog, initialScore, ragChunksRetrieved };
 }
 
 // ─── optimize() — main entry point for normal + git mode ─────────────────────
@@ -306,7 +331,7 @@ export async function optimize(
     candidatePath = path.join(runDir, "candidate.json");
   }
 
-  const { best, bestResult, log, initialScore } = await runIterations(
+  const { best, bestResult, log, initialScore, ragChunksRetrieved } = await runIterations(
     seed, n, callbacks, gitRoot, candidatePath
   );
 
@@ -333,10 +358,29 @@ export async function optimize(
     gitMode: settings.gitMode,
     exploreMode: false,
     candidatePath,
+    ragEnabled: settings.ragEnabled,
+    ...(settings.ragEnabled && {
+      ragBackend: (await import("../rag/config.js")).getRagConfig().backend,
+      ragChunksRetrieved,
+    }),
+    modelsEnabled: settings.modelsEnabled,
+    ...(settings.modelsEnabled && !settings.mockMode && {
+      modelMap: Object.fromEntries(STAGE_KEYS.map((k) => [k, resolveModel(k)])),
+    }),
   };
   writeJson(path.join(runDir, "manifest.json"), manifest);
 
-  callbacks.onComplete(best, bestResult, runDir, injectedPath);
+  const stats: RunStats = {
+    initialScore,
+    finalScore: bestResult.total,
+    improvementDelta: bestResult.total - initialScore,
+    actualIterations: log.length,
+    scoreProgression: log.map((l) => l.result.total),
+    // A revert = an iteration that ran but was not the best (and was not iteration 0/baseline)
+    reverts: log.filter((l) => !l.isBest && l.iteration > 0).length,
+    ragChunksRetrieved,
+  };
+  callbacks.onComplete(best, bestResult, runDir, injectedPath, stats);
 
   // Git log: collect and surface the experiment record
   let experimentLog: string[] | undefined;

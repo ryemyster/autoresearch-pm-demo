@@ -1,0 +1,45 @@
+{
+  "_comment": "Copy this file to models.config.json and edit it. See docs/FEATURES.md for all patterns.",
+
+  "default": "claude-haiku-4-5-20251001",
+
+  "stages": {
+    "_comment_stages": "Each stage can be a model name string, or an object with model + optional baseUrl/apiKey for custom/local SLMs.",
+
+    "epic_generator":  { "model": "claude-haiku-4-5-20251001" },
+    "epic_evaluator":  { "model": "claude-haiku-4-5-20251001" },
+    "code_generator":  { "model": "claude-haiku-4-5-20251001" },
+    "code_evaluator":  { "model": "claude-haiku-4-5-20251001" },
+    "validation":      { "model": "claude-haiku-4-5-20251001" },
+    "mcp_discovery":   { "model": "claude-haiku-4-5-20251001" }
+  },
+
+  "_patterns": {
+    "hybrid_llm": {
+      "_comment": "Use Sonnet for generators (quality matters), Haiku for evaluators (speed/cost)",
+      "default": "claude-haiku-4-5-20251001",
+      "stages": {
+        "epic_generator": { "model": "claude-sonnet-4-5" },
+        "code_generator": { "model": "claude-sonnet-4-5" }
+      }
+    },
+    "llm_plus_slm": {
+      "_comment": "Cloud LLM for generators, local SLM for evaluators (privacy + cost)",
+      "default": "claude-haiku-4-5-20251001",
+      "stages": {
+        "epic_generator":  { "model": "claude-sonnet-4-5" },
+        "epic_evaluator":  { "model": "my-eval-model", "baseUrl": "http://localhost:11434/v1", "apiKey": "none" },
+        "code_generator":  { "model": "claude-sonnet-4-5" },
+        "code_evaluator":  { "model": "my-eval-model", "baseUrl": "http://localhost:11434/v1", "apiKey": "none" },
+        "validation":      { "model": "my-eval-model", "baseUrl": "http://localhost:11434/v1", "apiKey": "none" }
+      }
+    },
+    "air_gapped": {
+      "_comment": "All stages on a local SLM — no data leaves your network",
+      "default": "my-local-model",
+      "defaultBaseUrl": "http://localhost:11434/v1",
+      "defaultApiKey": "none",
+      "stages": {}
+    }
+  }
+}

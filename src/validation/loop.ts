@@ -21,13 +21,21 @@ import type { ValidationResult, ValidationIterationLog } from "../shared/types/i
 
 // ─── Callbacks ────────────────────────────────────────────────────────────────
 
+export interface ValidationStats {
+  initialScore: number;
+  finalScore: number;
+  improvementDelta: number;
+  actualIterations: number;
+  scoreProgression: number[];
+}
+
 export interface ValidationCallbacks {
   /** Called at the start of each iteration, before any API calls. */
   onIterationStart: (i: number, total: number) => void;
   /** Called after validation. isBest=true if this pass rate is the highest so far. */
   onValidated: (result: ValidationResult, isBest: boolean) => void;
-  /** Called once at the end, with the best result and the final code file. */
-  onComplete: (bestResult: ValidationResult, targetFile: string) => void;
+  /** Called once at the end, with the best result, the final code file, and run stats. */
+  onComplete: (bestResult: ValidationResult, targetFile: string, stats: ValidationStats) => void;
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -116,6 +124,14 @@ export async function runValidation(
     }
   }
 
-  callbacks.onComplete(bestResult!, targetFile);
+  const initialScoreVal = iterationLog[0]?.result.totalScore ?? 0;
+  const stats: ValidationStats = {
+    initialScore: initialScoreVal,
+    finalScore: bestScore,
+    improvementDelta: bestScore - initialScoreVal,
+    actualIterations: iterationLog.length,
+    scoreProgression: iterationLog.map((l) => l.result.totalScore),
+  };
+  callbacks.onComplete(bestResult!, targetFile, stats);
   return { bestResult: bestResult!, log: iterationLog };
 }

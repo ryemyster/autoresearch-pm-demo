@@ -72,6 +72,7 @@ export async function prioritizeOpportunities(input: PrioritizeInput): Promise<P
       system: PRIORITIZE_PREFLIGHT_PROMPT,
       userMessage: context,
       maxTokens: 1024,
+      stageKey: "mcp_discovery",
     });
 
     const session: StageSession = {
@@ -106,6 +107,7 @@ export async function prioritizeOpportunities(input: PrioritizeInput): Promise<P
     system: PRIORITIZE_PROMPT,
     userMessage: `${context}\n\n${sessionContext}\n\nICE score the opportunities and identify the top one. Return JSON.`,
     maxTokens: 2048,
+    stageKey: "mcp_discovery",
   });
 
   idea.priorities = priorities;

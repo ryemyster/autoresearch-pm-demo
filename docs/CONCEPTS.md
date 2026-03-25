@@ -193,7 +193,7 @@ In this project, the "recipe" is a product plan (an epic). The loop:
 4. If the score dropped: reverts to the previous best
 5. Repeats N times
 
-After N iterations, you have the best-scoring plan the loop could find — and a record of everything it tried.
+After N iterations, you have the best-scoring plan the loop could find — and a record of everything it tried. In the full pattern, the loop also consults that record during the run — the agent reads what was tried before to decide what to try next, making git the system's memory, not just its audit trail.
 
 Read the full explanation: [HOW_IT_WORKS.md](HOW_IT_WORKS.md)
 

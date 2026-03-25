@@ -10,6 +10,8 @@
 //     [--code-quality]  ← run the code quality improvement loop (requires --target-file)
 //     [--validate]      ← run the validation loop against epic metrics (requires --target-file)
 //     [--target-file]   ← path to the code file to improve (required for --code-quality/--validate)
+//     [--rag]           ← enable vector store retrieval (configure in rag.config.json)
+//     [--models]        ← enable per-stage model routing (configure in models.config.json)
 //     [--yes]           ← skip the cost-confirmation prompt
 //     [--mock]          ← no API key needed, uses scripted fixtures
 //
@@ -24,13 +26,16 @@ if (args.includes("--git-mode"))     process.env.GIT_MODE = "true";
 if (args.includes("--explore"))      process.env.EXPLORE_MODE = "true";
 if (args.includes("--code-quality")) process.env.CODE_QUALITY_MODE = "true";
 if (args.includes("--validate"))     process.env.VALIDATION_MODE = "true";
+if (args.includes("--rag"))          process.env.RAG_ENABLED = "true";
+if (args.includes("--models"))      process.env.MODELS_ENABLED = "true";
 
 import * as readline from "readline";
 import chalk from "chalk";
-import { optimize, explore, injectVariation } from "./loop.js";
+import { optimize, explore, injectVariation, type RunStats } from "./loop.js";
 import { runCodeQuality } from "../code-quality/loop.js";
 import { runValidation } from "../validation/loop.js";
 import { assertApiKey, settings } from "../shared/config.js";
+import { STAGE_KEYS, resolveModel, resolveBaseUrl } from "../models/config.js";
 import type { Epic, EvaluationResult, ExploreReport, CodeQualityResult, ValidationResult } from "../shared/types/index.js";
 
 // ─── Arg parsing ──────────────────────────────────────────────────────────────
@@ -49,7 +54,9 @@ const gitMode       = args.includes("--git-mode");
 const exploreMode   = args.includes("--explore");
 const codeQualityMode = args.includes("--code-quality");
 const validationMode  = args.includes("--validate");
-const skipConfirm   = args.includes("--yes");
+const ragMode         = args.includes("--rag");
+const modelsMode      = args.includes("--models");
+const skipConfirm     = args.includes("--yes");
 
 if (!ideaId || !targetDir) {
   console.error(chalk.red("Error: --idea-id and --target-dir are required."));
@@ -64,6 +71,8 @@ if (!ideaId || !targetDir) {
   console.error("    [--code-quality]            run code quality loop (requires --target-file)");
   console.error("    [--validate]                run validation loop   (requires --target-file)");
   console.error("    [--target-file /path/to/file.ts]  code file to improve");
+  console.error("    [--rag]                     enable vector store retrieval (configure in rag.config.json)");
+  console.error("    [--models]                  enable per-stage model routing (configure in models.config.json)");
   console.error("    [--yes]                     skip cost confirmation prompt");
   console.error("    [--mock]                    no API key needed (uses scripted fixtures)");
   process.exit(1);
@@ -161,6 +170,35 @@ function printScoreTable(result: EvaluationResult): void {
     console.log(`  ${label}  ${rule}     ${llm}    ${total}    ${note}`);
   }
   console.log(chalk.dim("  ─────────────────────────────────────────────────────────────────"));
+}
+
+/**
+ * Prints a concise run-stats block after the loop finishes.
+ * Shows: score trajectory, delta, elapsed time, iterations run vs. budget, RAG chunks.
+ * Designed to be scannable — the most important number (delta) comes first.
+ */
+function printRunStats(stats: RunStats, elapsedSec: string, budget: number): void {
+  // Score progression as a mini sparkline: 3 → 8 → 10
+  const progression = stats.scoreProgression.join(" → ");
+  const deltaStr = stats.improvementDelta > 0
+    ? chalk.green(`+${stats.improvementDelta}`)
+    : stats.improvementDelta < 0
+      ? chalk.red(String(stats.improvementDelta))
+      : chalk.dim("±0");
+
+  const earlyExit = stats.actualIterations < budget;
+  const iterStr = earlyExit
+    ? `${stats.actualIterations}/${budget} iterations (early exit — perfect score)`
+    : `${stats.actualIterations}/${budget} iterations`;
+
+  console.log(chalk.dim(`  Score:      ${stats.initialScore}/10 → ${stats.finalScore}/10  (${deltaStr})   progression: ${progression}`));
+  console.log(chalk.dim(`  Run:        ${iterStr}   ${elapsedSec}s elapsed`));
+  if (stats.reverts > 0) {
+    console.log(chalk.dim(`  Reverts:    ${stats.reverts} iteration(s) discarded by git revert`));
+  }
+  if (stats.ragChunksRetrieved > 0) {
+    console.log(chalk.dim(`  RAG:        ${stats.ragChunksRetrieved} context chunk(s) retrieved`));
+  }
 }
 
 function printEpicSummary(epic: Epic, score: number): void {
@@ -270,7 +308,12 @@ async function promptVariationChoice(count: number, recommendedIndex: number): P
 const sharedCallbacks = {
   onIterationStart(i: number, total: number) {
     console.log("");
-    console.log(chalk.cyan(`Iteration ${i}/${total}`) + chalk.dim(" ────────────────────────────────────────────────"));
+    // Show which loop is running + which models are active for this iteration.
+    const loopLabel = gitMode ? "Epic Refinement Loop [git]" : "Epic Refinement Loop";
+    const modelHint = modelsMode
+      ? chalk.dim(` [gen: ${resolveModel("epic_generator")}  eval: ${resolveModel("epic_evaluator")}]`)
+      : "";
+    console.log(chalk.cyan(`Iteration ${i}/${total}`) + chalk.dim(` — ${loopLabel}`) + modelHint + chalk.dim(" ─────────────────"));
     process.stdout.write(chalk.dim("  Generating epic..."));
   },
   onGenerated(epic: Epic) {
@@ -292,10 +335,22 @@ const sharedCallbacks = {
       }
     }
   },
-  onComplete(best: Epic, bestResult: EvaluationResult, runDir: string, injectedPath: string) {
+  onComplete(best: Epic, bestResult: EvaluationResult, runDir: string, injectedPath: string, stats: RunStats) {
+    const elapsedSec = ((Date.now() - runStartTime) / 1000).toFixed(1);
     console.log("");
     console.log(chalk.bold.green("RESULT") + chalk.dim(" ─────────────────────────────────────────────────────────────"));
     printEpicSummary(best, bestResult.total);
+    console.log("");
+    printRunStats(stats, elapsedSec, iterations);
+    if (modelsMode) {
+      const gen = resolveModel("epic_generator");
+      const ev  = resolveModel("epic_evaluator");
+      const genUrl = resolveBaseUrl("epic_generator");
+      const evUrl  = resolveBaseUrl("epic_evaluator");
+      const genStr = gen + (genUrl ? ` (${genUrl})` : "");
+      const evStr  = ev  + (evUrl  ? ` (${evUrl})`  : "");
+      console.log(chalk.dim(`  Models:     generator=${genStr}   evaluator=${evStr}`));
+    }
     console.log("");
     console.log(chalk.dim("  Artifacts saved to:"), chalk.cyan(runDir));
     console.log(chalk.dim("  Epic injected to:"), chalk.cyan(injectedPath));
@@ -337,12 +392,48 @@ const sharedCallbacks = {
 // Determine which mode we're running
 const activeMode = validationMode ? "validate" : codeQualityMode ? "code-quality" : exploreMode ? "explore" : gitMode ? "optimize+git" : "optimize";
 
+// Track wall-clock time so we can report elapsed seconds at the end.
+const runStartTime = Date.now();
+
 console.log("");
 console.log(chalk.bold("Autoresearch PM Demo") + chalk.dim(` — ${activeMode} loop`));
 console.log(chalk.dim(`  idea:       ${ideaId}`));
 console.log(chalk.dim(`  target:     ${targetDir}`));
 if (targetFile) console.log(chalk.dim(`  file:       ${targetFile}`));
-console.log(chalk.dim(`  iterations: ${iterations}${exploreMode ? " × 3 variations" : ""}${mockMode ? " (mock)" : ""}${gitMode ? " (git mode)" : ""}`));
+console.log(chalk.dim(`  iterations: ${iterations}${exploreMode ? " × 3 variations" : ""}${mockMode ? " (mock)" : ""}${gitMode ? " (git mode)" : ""}${ragMode ? " (rag)" : ""}${modelsMode ? " (per-stage models)" : ""}`));
+
+// ── Model routing table (shown when --models is active) ─────────────────────
+// Shows which model (and endpoint, if custom) is assigned to each stage.
+// This makes routing decisions visible before any API calls happen.
+if (modelsMode) {
+  console.log("");
+  console.log(chalk.dim("  Model routing (--models active):"));
+  const STAGE_ROLE: Record<string, string> = {
+    epic_generator: "epic generator  ",
+    epic_evaluator: "epic evaluator  ",
+    code_generator: "code generator  ",
+    code_evaluator: "code evaluator  ",
+    validation:     "validation      ",
+    mcp_discovery:  "mcp discovery   ",
+  };
+  for (const key of STAGE_KEYS) {
+    const model  = resolveModel(key);
+    const url    = resolveBaseUrl(key);
+    const role   = STAGE_ROLE[key] ?? key.padEnd(16);
+    const urlStr = url ? chalk.dim(` → ${url}`) : "";
+    console.log(`    ${chalk.dim(role)}  ${chalk.cyan(model)}${urlStr}`);
+  }
+}
+
+// ── RAG info (shown when --rag is active) ───────────────────────────────────
+if (ragMode) {
+  // getRagConfig() is imported lazily inside the rag module — we read the env
+  // vars directly here to avoid pulling in the full rag module at startup.
+  const ragBackend = process.env.RAG_BACKEND ?? "chroma";
+  const ragUrl     = process.env.RAG_URL ?? "http://localhost:8000";
+  console.log("");
+  console.log(chalk.dim(`  RAG: backend=${ragBackend}  url=${ragUrl}`));
+}
 
 // Show cost estimate and confirm before making any API calls
 if (!mockMode) {
@@ -370,7 +461,10 @@ if (validationMode) {
     await runCodeQuality(targetFile, epicPath, ideaId, iterations, {
       onIterationStart(i, total) {
         console.log("");
-        console.log(chalk.cyan(`  Code quality iteration ${i}/${total}`) + chalk.dim(" ────────────────────────────────────────"));
+        const modelHint = modelsMode
+          ? chalk.dim(` [gen: ${resolveModel("code_generator")}  eval: ${resolveModel("code_evaluator")}]`)
+          : "";
+        console.log(chalk.cyan(`  Code Quality Loop — iteration ${i}/${total}`) + modelHint + chalk.dim(" ──────────────────────────"));
         process.stdout.write(chalk.dim("  Improving code..."));
       },
       onImproved(_code, file) {
@@ -380,9 +474,10 @@ if (validationMode) {
         printCodeQualityTable(result);
         console.log(chalk.bold(`  Score: ${result.total}/10`) + "   " + chalk.dim(`Best: ${bestScore}/10`) + (isBest ? "  " + chalk.green("✓ New best!") : ""));
       },
-      onComplete(_code, result, file) {
+      onComplete(_code, result, file, stats) {
         console.log("");
         console.log(chalk.green(`  Code quality complete: ${result.total}/10`));
+        console.log(chalk.dim(`  Score: ${stats.initialScore}/10 → ${stats.finalScore}/10  progression: ${stats.scoreProgression.join(" → ")}`));
         console.log(chalk.dim(`  File updated: ${file}`));
       },
     });
@@ -392,7 +487,10 @@ if (validationMode) {
     await runValidation(targetFile, epicPath, ideaId, iterations, {
       onIterationStart(i, total) {
         console.log("");
-        console.log(chalk.cyan(`  Validation iteration ${i}/${total}`) + chalk.dim(" ──────────────────────────────────────────"));
+        const modelHint = modelsMode
+          ? chalk.dim(` [model: ${resolveModel("validation")}]`)
+          : "";
+        console.log(chalk.cyan(`  Validation Loop — iteration ${i}/${total}`) + modelHint + chalk.dim(" ──────────────────────────────────"));
         process.stdout.write(chalk.dim("  Validating against epic metrics..."));
       },
       onValidated(result: ValidationResult, isBest) {
@@ -400,11 +498,12 @@ if (validationMode) {
         printValidationTable(result);
         if (isBest) console.log(chalk.green("  ✓ New best pass rate!"));
       },
-      onComplete(result, file) {
+      onComplete(result, file, stats) {
         console.log("");
         console.log(chalk.bold.green("VALIDATION RESULT") + chalk.dim(" ─────────────────────────────────────────────────"));
         printValidationTable(result);
         console.log("");
+        console.log(chalk.dim(`  Score: ${stats.initialScore}/10 → ${stats.finalScore}/10  progression: ${stats.scoreProgression.join(" → ")}   ${stats.actualIterations}/${iterations} iterations`));
         console.log(chalk.dim("  File:"), chalk.cyan(file));
         if (result.passCount === result.tests.length && result.tests.length > 0) {
           console.log(chalk.green("  All metrics pass! This code satisfies the epic."));
@@ -422,7 +521,10 @@ if (validationMode) {
     await runCodeQuality(targetFile, epicPath, ideaId, iterations, {
       onIterationStart(i, total) {
         console.log("");
-        console.log(chalk.cyan(`Iteration ${i}/${total}`) + chalk.dim(" ────────────────────────────────────────────────"));
+        const modelHint = modelsMode
+          ? chalk.dim(` [gen: ${resolveModel("code_generator")}  eval: ${resolveModel("code_evaluator")}]`)
+          : "";
+        console.log(chalk.cyan(`Code Quality Loop — iteration ${i}/${total}`) + modelHint + chalk.dim(" ──────────────────────────────────"));
         process.stdout.write(chalk.dim("  Improving code..."));
       },
       onImproved(_code, file) {
@@ -439,10 +541,11 @@ if (validationMode) {
           }
         }
       },
-      onComplete(bestCode, result, file) {
+      onComplete(bestCode, result, file, stats) {
         console.log("");
         console.log(chalk.bold.green("CODE QUALITY RESULT") + chalk.dim(" ─────────────────────────────────────────────────"));
-        console.log(chalk.dim("  Final score: ") + chalk.bold(`${result.total}/10`));
+        console.log(chalk.dim("  Score:        ") + chalk.bold(`${stats.initialScore}/10 → ${stats.finalScore}/10`) + chalk.dim(`  progression: ${stats.scoreProgression.join(" → ")}`));
+        console.log(chalk.dim(`  Iterations:   ${stats.actualIterations}/${iterations}`));
         console.log(chalk.dim("  File updated: ") + chalk.cyan(file));
         console.log("");
         console.log(chalk.dim("  Next → run validation:"), chalk.bold(`--validate --target-file ${file}`));

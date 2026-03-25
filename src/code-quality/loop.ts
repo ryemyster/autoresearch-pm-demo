@@ -24,6 +24,14 @@ import type { CodeQualityResult, CodeIterationLog } from "../shared/types/index.
 // Callbacks let main.ts display progress without knowing loop internals.
 // All are required so the caller always gets notified of each event.
 
+export interface CodeQualityStats {
+  initialScore: number;
+  finalScore: number;
+  improvementDelta: number;
+  actualIterations: number;
+  scoreProgression: number[];
+}
+
 export interface CodeQualityCallbacks {
   /** Called at the start of each iteration, before any API calls. */
   onIterationStart: (i: number, total: number) => void;
@@ -31,8 +39,8 @@ export interface CodeQualityCallbacks {
   onImproved: (code: string, targetFile: string) => void;
   /** Called after the code is scored. isBest=true if this is the new top score. */
   onEvaluated: (result: CodeQualityResult, isBest: boolean, bestScore: number) => void;
-  /** Called once at the end, with the best code and its evaluation result. */
-  onComplete: (bestCode: string, bestResult: CodeQualityResult, targetFile: string) => void;
+  /** Called once at the end, with the best code, its evaluation result, and run stats. */
+  onComplete: (bestCode: string, bestResult: CodeQualityResult, targetFile: string, stats: CodeQualityStats) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -141,6 +149,14 @@ export async function runCodeQuality(
   // This is the "single modifiable file" — the loop ends with the best version on disk
   fs.writeFileSync(targetFile, bestCode, "utf-8");
 
-  callbacks.onComplete(bestCode, bestResult!, targetFile);
+  const initialScoreVal = iterationLog[0]?.result.total ?? 0;
+  const stats: CodeQualityStats = {
+    initialScore: initialScoreVal,
+    finalScore: bestScore,
+    improvementDelta: bestScore - initialScoreVal,
+    actualIterations: iterationLog.length,
+    scoreProgression: iterationLog.map((l) => l.result.total),
+  };
+  callbacks.onComplete(bestCode, bestResult!, targetFile, stats);
   return { bestCode, bestResult: bestResult!, log: iterationLog };
 }

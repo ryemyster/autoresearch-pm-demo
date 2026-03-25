@@ -162,6 +162,7 @@ async function llmScoreCode(
     system: LLM_SCORING_SYSTEM,
     userMessage: `EPIC OUTCOME (what this code should achieve):\n${epicOutcome}\n\nCODE TO EVALUATE:\n\`\`\`\n${code}\n\`\`\`\n\nScore each criterion and return the JSON object.`,
     maxTokens: 600,
+    stageKey: "code_evaluator",
   });
 }
 

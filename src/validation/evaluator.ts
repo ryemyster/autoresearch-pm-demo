@@ -135,6 +135,7 @@ async function llmValidate(
     system: VALIDATION_SYSTEM,
     userMessage: `CODE TO VALIDATE:\n\`\`\`\n${code}\n\`\`\`\n\nSUCCESS METRICS FROM EPIC:\n${metricsText}\n\nFor each metric, return whether the code satisfies it. Return JSON: { "tests": [...] }`,
     maxTokens: 1000,
+    stageKey: "validation",
   });
 
   const tests: TestResult[] = response.tests.map((t) => ({

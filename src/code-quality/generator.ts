@@ -159,6 +159,7 @@ export async function improveCode(
       system: IMPROVE_SYSTEM,
       userMessage: `EPIC OUTCOME:\n${epicOutcome}\n\nCURRENT CODE:\n\`\`\`\n${currentCode}\n\`\`\`${hintsText}\n\nReturn JSON: { "code": "<improved code here>" }`,
       maxTokens: 2000,
+      stageKey: "code_generator",
     });
     improvedCode = response.code;
   }

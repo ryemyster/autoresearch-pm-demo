@@ -282,13 +282,13 @@ Save the file. The `.env` file is in `.gitignore`, which means git will never in
 
 ---
 
-## Step 11: Register the MCP server with Claude Code
+## Step 11: Connect the MCP tools to your AI app
 
-This adds the three discovery tools to Claude Code so you can use them in Step 12.
+This adds the three discovery tools (`validate_problem`, `prioritize_opportunities`, `define_epic`) to whichever AI app you're using.
 
-**First, make sure you have your API key ready in `.env` from Step 10.**
+> **Full setup guide for all platforms:** See [MCP_SETUP.md](MCP_SETUP.md) — it covers VS Code with Claude Code, Claude Desktop on Mac, and Claude Desktop on Windows, with step-by-step instructions and a troubleshooting section.
 
-Run this command:
+**Quick version (VS Code with Claude Code on Mac/Linux):**
 
 ```bash
 claude mcp add autoresearch-demo \
@@ -297,11 +297,7 @@ claude mcp add autoresearch-demo \
   -- node "$(pwd)/dist/mcp/index.js"
 ```
 
-> **What does this command do?** It registers the demo's MCP server with Claude Code. The `$(grep ...)` part automatically reads your API key from the `.env` file so you don't have to type it manually. The `$(pwd)` part inserts the full path to your current folder.
->
-> If this command gives an error about the API key, double-check that your `.env` file is saved and contains your key with no extra spaces.
-
-Then verify it registered:
+Then verify:
 
 ```bash
 claude mcp list
@@ -315,7 +311,7 @@ autoresearch-demo   connected
 
 > **What is MCP?** See [CONCEPTS.md → What is MCP?](CONCEPTS.md#what-is-mcp)
 
-If you see `disconnected`, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#mcp-server-disconnected).
+If you see `disconnected`, or you're on Windows, or you're using Claude Desktop — follow the full guide in [MCP_SETUP.md](MCP_SETUP.md).
 
 ---
 

@@ -139,21 +139,181 @@ The pipeline has 5 stages. Three of them are **loops** — they run automaticall
 
 ---
 
-## Docs
+## Reading guide
+
+**Where you start depends on who you are.**
+
+### If you're a Product Manager (or not a developer)
+
+Follow this path — in order:
+
+| Step | Document | What you'll get |
+| ---- | -------- | --------------- |
+| 1 | [docs/CONCEPTS.md](docs/CONCEPTS.md) | Plain-English explanations of every term used in this project — AI, tokens, MCP, git, terminals. Read this first if anything sounds unfamiliar. |
+| 2 | [The PM example below ↓](#a-real-example-for-product-managers) | A worked scenario showing exactly how a PM would use this tool on a real problem, step by step. |
+| 3 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Install, run the demo, and see the loop in action. Takes about 30 minutes. |
+| 4 | [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | The core ideas — why loops beat one-shot generation, what the "governance model" means for PMs, how this changes your role. |
+| 5 | [docs/FEATURES.md](docs/FEATURES.md) | Every feature explained: explore mode, git mode, RAG, model routing, token costs. Bookmark this for when you want to try something new. |
+
+### If you're a developer
 
 | Document | What's in it |
 | -------- | ----------- |
-| [docs/CONCEPTS.md](docs/CONCEPTS.md) | Plain-English explanations of AI, Claude, MCP, terminals, and Node.js |
-| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Full step-by-step tutorial from zero to running the demo |
-| [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | Deep dive: Karpathy pattern, MCP tool design, all five pipeline stages |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and how to fix them |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to contribute — fork, branch, PR flow explained for beginners |
+| [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | Core concepts — the Karpathy pattern, governance model, why loops beat one-shot |
+| [docs/FEATURES.md](docs/FEATURES.md) | Feature reference — RAG, explore mode, per-stage model routing, git mode, token costs |
+| [docs/FOR_DEVELOPERS.md](docs/FOR_DEVELOPERS.md) | Deep dives — eval design, MCP tool patterns, code annotations map |
+| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup and first run |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and fixes |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Fork, branch, PR flow |
 
 ### Key external resources
 
 | Resource | What it is |
 | -------- | ---------- |
-| [arcade.dev/patterns](https://www.arcade.dev/patterns) | **For developers:** The definitive catalog of MCP tool design patterns — 44 patterns across 10 categories. The Discovery tools in this project implement 5 of them. Start here if you're building your own MCP tools. |
+| [arcade.dev/patterns](https://www.arcade.dev/patterns) | **For developers:** The definitive catalog of MCP tool design patterns — 44 patterns across 10 categories. The Discovery tools in this project implement 5 of them. |
+
+---
+
+## A real example for Product Managers
+
+Here's what using this tool actually looks like — from a real PM problem to a finished plan.
+
+### The scenario
+
+You're a Product Manager at a company that makes an app for tracking personal fitness goals. Your team has noticed that a lot of new users sign up but never come back after the first week. Your manager asks you: **"Can you figure out what to build to fix retention?"**
+
+In the old world, you'd spend days writing a document, getting feedback, rewriting it, scheduling meetings. By the time everyone agreed, a month had passed.
+
+With this tool, you spend 20 minutes describing the problem — and the AI does the drafting loop for you.
+
+---
+
+### Step 1: Describe your problem (in Claude Code)
+
+Open your terminal (the black screen where you type commands). Start Claude Code. Then type something like this to the AI:
+
+```text
+I'm a PM at a fitness app company. New users sign up but don't come back after week 1.
+I think we need to improve onboarding. Can you help me define this as a feature?
+```
+
+Claude will say "let me help you validate this" and call the `validate_problem` tool. It will ask you 3 questions — things like:
+
+- "Who exactly is affected? First-time users only, or returning users too?"
+- "What does 'not coming back' mean in numbers? What's the current drop-off rate?"
+- "Have you tried anything before? What happened?"
+
+You answer these. Be specific. The more specific you are, the better the output.
+
+> **Why does it ask questions?** Because "improve retention" is too vague to build anything. The AI is pushing you to be specific *before* it writes anything — just like a good engineer would.
+
+---
+
+### Step 2: Get a first draft plan
+
+After you answer the questions, Claude calls `define_epic`. This creates a first draft of your feature plan (called an "epic"). It will look something like this:
+
+```text
+Problem: 62% of new users don't return after day 7.
+Root cause: Users don't experience a "first win" in session 1.
+
+What to build:
+  - A 3-step onboarding flow that guides users to log one goal and one workout
+  - A 7-day streak feature with a push notification on day 3 if no activity
+  - A progress summary email on day 7
+
+Success metrics:
+  | Metric              | Target  |
+  | ------------------- | ------- |
+  | Day-7 retention     | > 45%   | (currently 38%)
+  | First workout logged | > 70%  | (within 24hrs of signup)
+```
+
+This is a rough draft. It might be vague in places. That's okay — the next step fixes that.
+
+---
+
+### Step 3: Run the refinement loop
+
+Claude gives you a command to run. It looks like this:
+
+```bash
+npx tsx src/autoresearch/main.ts --idea-id fitness-retention --target-dir ./docs --iterations 5
+```
+
+You paste that into your terminal and press Enter.
+
+Watch what happens:
+
+```text
+Iteration 1 — Score: 6/10
+  Hints: "Success metrics lack measurement method. Onboarding steps need
+          tech detail for engineers. No risk analysis."
+
+Iteration 2 — Score: 8/10
+  Hints: "Day-7 retention target needs a baseline. Push notification
+          frequency not specified."
+
+Iteration 3 — Score: 9/10
+  ✓  Score did not improve further. Keeping best.
+
+Best score: 9/10  (started at 6/10, improved by 3 points)
+```
+
+Each iteration, the AI:
+
+1. Reads the current plan
+2. Rewrites it to fix the weakest parts
+3. Scores it against 5 criteria (0-10)
+4. Keeps the better version, throws away the worse one
+
+You just watched the AI improve a draft plan 3 times in about 90 seconds.
+
+---
+
+### Step 4: Read your finished plan
+
+The final plan is saved as a file: `docs/fitness-retention-epic.md`.
+
+Open it. It will be much more specific than your starting description:
+
+- The onboarding flow now has specific screens listed
+- Each success metric has a measurement method ("tracked via Mixpanel funnel report")
+- There's a risk section ("push notifications require iOS/Android permission — add permission prompt to onboarding flow")
+
+This is a plan you could hand to an engineer today.
+
+---
+
+### Step 5 (optional): Compare 3 different angles
+
+Not sure which way to frame the problem? Run explore mode:
+
+```bash
+npx tsx src/autoresearch/main.ts --idea-id fitness-retention --target-dir ./docs --iterations 3 --explore
+```
+
+This runs the loop 3 times with different starting lenses:
+
+| # | Framing | What it emphasizes |
+| - | ------- | ------------------ |
+| 1 | outcome-focused | Who's affected, by how much, by when |
+| 2 | risk-focused | What could go wrong, what to build around it |
+| 3 | metric-focused | Every deliverable tied to a measurable number |
+
+You get a comparison table at the end. Pick the framing that fits what your stakeholders care about most right now.
+
+---
+
+### What changed for you as a PM?
+
+**Before this tool:** You write the plan → someone reviews it → you rewrite it → repeat for 2 weeks.
+
+**With this tool:** You describe the problem and answer 3 questions → the AI runs 5-10 iterations → you read the best plan and decide if it's good enough.
+
+Your job shifted from *writing* to *deciding*. You spend your time on the things only you can do: understanding the business, knowing what stakeholders care about, and choosing between options the AI surfaced for you.
+
+The criteria that determine "good enough" — those are yours. You set them once (in the evaluator). Then the system explores the space for you.
 
 ---
 
