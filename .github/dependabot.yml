@@ -12,6 +12,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "develop"
     # Group all patch and minor updates into a single PR to reduce noise.
     # Breaking (major) version bumps still get their own PR so you notice them.
     groups:
