@@ -108,7 +108,11 @@ If that shows TypeScript errors, look at the error message — it usually points
    MODEL=claude-sonnet-4-6
    ```
 
-3. Make sure your `raw.json` seed file is valid. Open it in VS Code — if the content looks garbled or truncated, that's the problem. Re-run `define_epic` to regenerate it.
+3. Make sure your `raw.json` seed file is valid. Open it in VS Code — if the content looks garbled or truncated, that's the problem. Re-run `--define-epic` to regenerate it:
+
+   ```bash
+   npx tsx src/autoresearch/main.ts --define-epic --idea-id <your-id>
+   ```
 
 ---
 
@@ -148,6 +152,40 @@ If that shows TypeScript errors, look at the error message — it usually points
 **What it means:** Claude Code CLI isn't installed or isn't in your PATH.
 
 **Fix:** Install Claude Code from VS Code (Extensions → search "Claude Code") or follow the setup in [GETTING_STARTED.md#step-3-install-claude-code-in-vs-code](GETTING_STARTED.md#step-3-install-claude-code-in-vs-code). The `claude` CLI command becomes available after installing the extension.
+
+---
+
+## `--discover` / `--prioritize` / `--define-epic` shows no output or crashes
+
+**What it means:** One of the four discovery commands didn't finish correctly.
+
+**Fix:**
+
+1. Make sure you ran `npm run build` first — the discovery commands need compiled code in `dist/`
+2. Make sure your API key is set in `.env` (or add `--mock` to run without one)
+3. Make sure you're passing `--idea-id` — it is required for all discovery commands:
+
+   ```bash
+   npx tsx src/autoresearch/main.ts --discover --idea-id my-idea
+   ```
+
+4. If the error says something about `No idea found`, run `--discover` first before `--prioritize` or `--define-epic` — each step depends on the previous one saving its result
+
+---
+
+## `--inject` says "No raw epic found"
+
+**What it means:** You ran `--inject` but `--define-epic` hasn't been run yet (or ran for a different idea ID).
+
+**Fix:**
+
+Run `--define-epic` first:
+
+```bash
+npx tsx src/autoresearch/main.ts --define-epic --idea-id my-idea
+```
+
+Then try `--inject` again. The idea ID must match exactly — `my-idea` and `My-Idea` are treated as different ideas.
 
 ---
 
