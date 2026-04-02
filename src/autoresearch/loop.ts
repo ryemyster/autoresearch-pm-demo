@@ -106,7 +106,7 @@ function writeJson(filePath: string, data: unknown): void {
  * WHY:  The handoff between stages is always a file — inspectable, readable by
  *       a human or by Claude Code's /build-from-epic skill.
  */
-function formatEpicAsMarkdown(epic: Epic, score: number, ideaId: string): string {
+export function formatEpicAsMarkdown(epic: Epic, score: number, ideaId: string): string {
   const lines = [
     `# Epic: ${epic.title}`,
     ``,

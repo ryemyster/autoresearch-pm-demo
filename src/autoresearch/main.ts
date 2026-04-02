@@ -27,7 +27,11 @@ if (args.includes("--explore"))      process.env.EXPLORE_MODE = "true";
 if (args.includes("--code-quality")) process.env.CODE_QUALITY_MODE = "true";
 if (args.includes("--validate"))     process.env.VALIDATION_MODE = "true";
 if (args.includes("--rag"))          process.env.RAG_ENABLED = "true";
-if (args.includes("--models"))      process.env.MODELS_ENABLED = "true";
+if (args.includes("--models"))       process.env.MODELS_ENABLED = "true";
+if (args.includes("--discover"))     process.env.DISCOVER_MODE = "true";
+if (args.includes("--prioritize"))   process.env.PRIORITIZE_MODE = "true";
+if (args.includes("--define-epic"))  process.env.DEFINE_EPIC_MODE = "true";
+if (args.includes("--inject"))       process.env.INJECT_MODE = "true";
 
 import * as readline from "readline";
 import chalk from "chalk";
@@ -36,6 +40,7 @@ import { runCodeQuality } from "../code-quality/loop.js";
 import { runValidation } from "../validation/loop.js";
 import { assertApiKey, settings } from "../shared/config.js";
 import { STAGE_KEYS, resolveModel, resolveBaseUrl } from "../models/config.js";
+import { runDiscover, runPrioritize, runDefineEpic, runInject } from "./discover.js";
 import type { Epic, EvaluationResult, ExploreReport, CodeQualityResult, ValidationResult } from "../shared/types/index.js";
 
 // ─── Arg parsing ──────────────────────────────────────────────────────────────
@@ -57,9 +62,13 @@ const validationMode  = args.includes("--validate");
 const ragMode         = args.includes("--rag");
 const modelsMode      = args.includes("--models");
 const skipConfirm     = args.includes("--yes");
+const discoverMode    = args.includes("--discover");
+const prioritizeMode  = args.includes("--prioritize");
+const defineEpicMode  = args.includes("--define-epic");
+const injectMode      = args.includes("--inject");
+const isDiscoveryMode = discoverMode || prioritizeMode || defineEpicMode || injectMode;
 
-if (!ideaId || !targetDir) {
-  console.error(chalk.red("Error: --idea-id and --target-dir are required."));
+function printUsage(): void {
   console.error("");
   console.error("Usage:");
   console.error("  npx tsx src/autoresearch/main.ts \\");
@@ -75,6 +84,31 @@ if (!ideaId || !targetDir) {
   console.error("    [--models]                  enable per-stage model routing (configure in models.config.json)");
   console.error("    [--yes]                     skip cost confirmation prompt");
   console.error("    [--mock]                    no API key needed (uses scripted fixtures)");
+  console.error("");
+  console.error("Discovery flags (--target-dir not required):");
+  console.error("    [--discover]                validate problem hypothesis via LLM");
+  console.error("    [--prioritize]              ICE score opportunities (run --discover first)");
+  console.error("    [--define-epic]             synthesize research into a raw Epic");
+  console.error("");
+  console.error("Inject flag:");
+  console.error("    [--inject]                  inject raw epic to --target-dir (no LLM call)");
+  console.error("                                requires --idea-id + --target-dir");
+}
+
+if (!ideaId) {
+  console.error(chalk.red("Error: --idea-id is required."));
+  printUsage();
+  process.exit(1);
+}
+
+if (!targetDir && !isDiscoveryMode) {
+  console.error(chalk.red("Error: --target-dir is required for this mode."));
+  printUsage();
+  process.exit(1);
+}
+
+if (injectMode && !targetDir) {
+  console.error(chalk.red("Error: --inject requires --target-dir <absolute-path>."));
   process.exit(1);
 }
 
@@ -86,7 +120,7 @@ if ((codeQualityMode || validationMode) && !targetFile) {
 
 const iterations = iterationsStr ? parseInt(iterationsStr, 10) : 3;
 
-if (!mockMode) assertApiKey();
+if (!mockMode && !injectMode) assertApiKey();
 
 // ─── Cost Estimate ────────────────────────────────────────────────────────────
 
@@ -390,7 +424,15 @@ const sharedCallbacks = {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 // Determine which mode we're running
-const activeMode = validationMode ? "validate" : codeQualityMode ? "code-quality" : exploreMode ? "explore" : gitMode ? "optimize+git" : "optimize";
+const activeMode = discoverMode ? "discover"
+  : prioritizeMode ? "prioritize"
+  : defineEpicMode ? "define-epic"
+  : injectMode ? "inject"
+  : validationMode ? "validate"
+  : codeQualityMode ? "code-quality"
+  : exploreMode ? "explore"
+  : gitMode ? "optimize+git"
+  : "optimize";
 
 // Track wall-clock time so we can report elapsed seconds at the end.
 const runStartTime = Date.now();
@@ -398,7 +440,7 @@ const runStartTime = Date.now();
 console.log("");
 console.log(chalk.bold("Autoresearch PM Demo") + chalk.dim(` — ${activeMode} loop`));
 console.log(chalk.dim(`  idea:       ${ideaId}`));
-console.log(chalk.dim(`  target:     ${targetDir}`));
+if (targetDir) console.log(chalk.dim(`  target:     ${targetDir}`));
 if (targetFile) console.log(chalk.dim(`  file:       ${targetFile}`));
 console.log(chalk.dim(`  iterations: ${iterations}${exploreMode ? " × 3 variations" : ""}${mockMode ? " (mock)" : ""}${gitMode ? " (git mode)" : ""}${ragMode ? " (rag)" : ""}${modelsMode ? " (per-stage models)" : ""}`));
 
@@ -435,8 +477,9 @@ if (ragMode) {
   console.log(chalk.dim(`  RAG: backend=${ragBackend}  url=${ragUrl}`));
 }
 
-// Show cost estimate and confirm before making any API calls
-if (!mockMode) {
+// Show cost estimate and confirm before making any API calls.
+// Skip for discovery modes — single LLM calls, not iterative budgets.
+if (!mockMode && !isDiscoveryMode) {
   printCostEstimate(iterations, exploreMode);
   console.log("");
   if (!skipConfirm) {
@@ -452,7 +495,19 @@ if (!mockMode) {
 // The epic is in targetDir as {ideaId}-epic.md (injected by the Epic Refinement Loop)
 const epicPath = targetDir ? `${targetDir}/${ideaId}-epic.md` : "";
 
-if (validationMode) {
+if (discoverMode) {
+  await runDiscover(ideaId);
+
+} else if (prioritizeMode) {
+  await runPrioritize(ideaId);
+
+} else if (defineEpicMode) {
+  await runDefineEpic(ideaId);
+
+} else if (injectMode) {
+  await runInject(ideaId, targetDir!);
+
+} else if (validationMode) {
   // ── Validation mode: validate code against epic's success metrics ────────
   // If --validate is set, run code quality first, then validation
   if (targetFile) {
@@ -556,7 +611,7 @@ if (validationMode) {
 
 } else if (exploreMode) {
   // ── Explore mode: 3 framings, side-by-side comparison ─────────────────────
-  const report = await explore(ideaId, targetDir, iterations, {
+  const report = await explore(ideaId, targetDir!, iterations, {
     ...sharedCallbacks,
     onExploreComplete(report) {
       printExploreTable(report);
@@ -568,7 +623,7 @@ if (validationMode) {
 
   console.log("");
   console.log(chalk.bold.green(`  Injecting variation #${chosenIndex + 1} (${chosen.framingLabel})...`));
-  const injectedPath = injectVariation(report, chosenIndex, targetDir);
+  const injectedPath = injectVariation(report, chosenIndex, targetDir!);
 
   console.log(chalk.dim("  Epic injected to:"), chalk.cyan(injectedPath));
   console.log("");
@@ -577,5 +632,5 @@ if (validationMode) {
 
 } else {
   // ── Normal mode (and git mode): optimize the epic ─────────────────────────
-  await optimize(ideaId, targetDir, iterations, sharedCallbacks);
+  await optimize(ideaId, targetDir!, iterations, sharedCallbacks);
 }
