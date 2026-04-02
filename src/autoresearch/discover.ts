@@ -1,12 +1,19 @@
-// CLI handlers for the 4 discovery-pipeline flags:
-//   --discover    → validate_problem (full analysis, no preflight)
-//   --prioritize  → prioritize_opportunities (full analysis, no preflight)
-//   --define-epic → define_epic (full analysis, no preflight)
-//   --inject      → inject raw epic from artifacts/epics/<ideaId>/raw.json to target-dir
+// discover.ts — The four Discovery commands that run from the terminal.
 //
-// These call the same MCP tool functions directly with proceed=true, bypassing the
-// two-call preflight pattern. That pattern exists for MCP agents that need to gather
-// missing info interactively; on the CLI the user runs a direct analysis.
+// What this file does:
+//   --discover    → Step 1: Ask Claude "is this problem real and worth solving?"
+//   --prioritize  → Step 2: Ask Claude "what are the best ways to solve it?" (ICE scores)
+//   --define-epic → Step 3: Ask Claude "write me a first draft plan" (the "epic")
+//   --inject      → Step 4: Copy the draft plan into the target project (no Claude call)
+//
+// Each step saves its results to the artifacts/ folder so the next step can read them.
+// Run them in order — each one builds on the last.
+//
+// Under the hood: these call the same functions used by the MCP tools, but skip
+// the "ask questions first" step. The MCP tools use a two-round pattern
+// (round 1 = ask questions, round 2 = do the work) because a chat agent needs
+// to gather information before it can act. On the command line, we skip round 1
+// and go straight to the work — the analysis runs immediately.
 
 import chalk from "chalk";
 import { validateProblem } from "../mcp/tools/discover.js";
@@ -16,6 +23,9 @@ import { loadRawEpic, injectArtifact } from "../mcp/artifacts/store.js";
 import { formatEpicAsMarkdown } from "./loop.js";
 
 // ─── --discover ───────────────────────────────────────────────────────────────
+// Step 1 of 4. Sends your idea to Claude and asks: "Is this problem real?
+// Is it specific enough? Is it worth building something for?"
+// Saves the result into the idea's artifact file so --prioritize can read it.
 
 export async function runDiscover(ideaId: string): Promise<void> {
   console.log("");
@@ -55,6 +65,10 @@ export async function runDiscover(ideaId: string): Promise<void> {
 }
 
 // ─── --prioritize ─────────────────────────────────────────────────────────────
+// Step 2 of 4. Reads the validated problem from Step 1 and asks Claude:
+// "What are the different ways to solve this, and which is the best bet?"
+// Uses ICE scoring: Impact (how much it helps), Confidence (how sure we are),
+// Effort (how hard to build). Higher total = better bet.
 
 export async function runPrioritize(ideaId: string): Promise<void> {
   console.log("");
@@ -104,6 +118,10 @@ export async function runPrioritize(ideaId: string): Promise<void> {
 }
 
 // ─── --define-epic ────────────────────────────────────────────────────────────
+// Step 3 of 4. Takes everything from Steps 1 and 2 and asks Claude to write
+// the first draft of the feature plan (called an "epic"). An epic is a one-page
+// spec: what problem it solves, what to build, and how to measure success.
+// Saves the result as raw.json — the starting point for the Epic Refinement Loop.
 
 export async function runDefineEpic(ideaId: string): Promise<void> {
   console.log("");
@@ -142,6 +160,13 @@ export async function runDefineEpic(ideaId: string): Promise<void> {
 }
 
 // ─── --inject ─────────────────────────────────────────────────────────────────
+// Step 4 of 4. Copies the raw epic (saved in Step 3) into your target project
+// as a readable markdown file. This is a simple file copy — no Claude call,
+// no API key needed, always free.
+//
+// Why is this a separate step? Because the Epic Refinement Loop reads from a
+// file in your target project's docs folder. This step puts the plan there.
+// Score = 0 means "this is the raw first draft, before any loop improvements."
 
 export async function runInject(ideaId: string, targetDir: string): Promise<void> {
   console.log("");

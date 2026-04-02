@@ -10,6 +10,7 @@ This file covers every major feature of the autoresearch-pm-demo — what it doe
 
 | Feature | Jump to |
 | ------- | ------- |
+| Discovery CLI Flags | [→ below](#discovery-cli-flags) |
 | Single File Pattern | [→ below](#the-single-file-pattern) |
 | Git Revert Pattern | [→ below](#the-git-revert-pattern) |
 | Explore Mode | [→ below](#explore-mode-pre-decision-exploration) |
@@ -18,6 +19,68 @@ This file covers every major feature of the autoresearch-pm-demo — what it doe
 | The Validation Loop | [→ below](#the-validation-loop) |
 | RAG Integration | [→ below](#rag-integration) |
 | Per-Stage Model Routing | [→ below](#per-stage-model-routing) |
+
+---
+
+## Discovery CLI Flags
+
+### What is Discovery?
+
+Before the AI can refine a plan, someone needs to write the first draft. Discovery is that first step — it's four commands that take your rough idea and turn it into a structured plan.
+
+Think of it like an intake form at a doctor's office. You fill in the sections one at a time. At the end, the doctor (in this case, the Epic Refinement Loop) has enough information to do something useful with it.
+
+### The four commands
+
+Run them in order. Each one builds on the last.
+
+| Command flag | What it does |
+| ------------ | ------------ |
+| `--discover` | Checks whether your problem is real and worth solving |
+| `--prioritize` | Scores different ways to solve the problem (ICE scores) |
+| `--define-epic` | Writes the first draft plan (your "epic") |
+| `--inject` | Copies the draft plan into your project's docs folder |
+
+### How to run them
+
+```bash
+# Step 1: Validate your problem
+npx tsx src/autoresearch/main.ts --discover --idea-id my-idea
+
+# Step 2: Score your options
+npx tsx src/autoresearch/main.ts --prioritize --idea-id my-idea
+
+# Step 3: Write the first draft
+npx tsx src/autoresearch/main.ts --define-epic --idea-id my-idea
+
+# Step 4: Copy it into your project
+npx tsx src/autoresearch/main.ts \
+  --inject --idea-id my-idea \
+  --target-dir /path/to/your/project/docs
+```
+
+The `--idea-id` is just a name for your project — pick something short with no spaces. Use the same ID in all four commands so they connect to the same work.
+
+### What `--inject` does (and why it's separate)
+
+`--inject` doesn't call Claude at all — it just copies the file. That makes it fast, free, and safe to re-run. If you want to put the same plan into a different project, just run `--inject` again with a new `--target-dir`.
+
+### No API key? Use mock mode
+
+Add `--mock` to any discovery command to run it with fake scripted responses. Nothing is sent to Claude. Nothing costs money. Great for testing the flow before you're ready to use a real API key.
+
+```bash
+npx tsx src/autoresearch/main.ts --discover --idea-id test-idea --mock
+```
+
+### What about the MCP tools?
+
+There are also three MCP tools (`validate_problem`, `prioritize_opportunities`, `define_epic`) that do the same thing as the CLI flags above — but you use them by chatting with Claude inside VS Code or Claude Desktop instead of typing terminal commands.
+
+- **CLI flags** = type commands in a terminal — simpler, works anywhere
+- **MCP tools** = talk to Claude in a chat window — more conversational, but requires extra setup
+
+Both produce identical output. Use whichever feels more comfortable. See [MCP_SETUP.md](MCP_SETUP.md) for MCP setup instructions.
 
 ---
 

@@ -282,139 +282,128 @@ Save the file. The `.env` file is in `.gitignore`, which means git will never in
 
 ---
 
-## Step 11: Connect the MCP tools to your AI app
+## Step 11: Discovery — Run the four discovery commands
 
-This adds the three discovery tools (`validate_problem`, `prioritize_opportunities`, `define_epic`) to whichever AI app you're using.
+> **No API key yet?** You can still run these steps — just add `--mock` to each command. Mock mode uses scripted fake responses, costs nothing, and shows you the exact same output format.
 
-> **Full setup guide for all platforms:** See [MCP_SETUP.md](MCP_SETUP.md) — it covers VS Code with Claude Code, Claude Desktop on Mac, and Claude Desktop on Windows, with step-by-step instructions and a troubleshooting section.
+Discovery is four terminal commands, run one at a time in order. Each one asks Claude a question about your idea and saves the answer. Think of it like filling out a form — one section at a time.
 
-**Quick version (VS Code with Claude Code on Mac/Linux):**
+Choose an idea ID for your project — something short with no spaces, like `feature-usage-tracker` or `fitness-retention`. You'll use this same ID in all four commands.
+
+---
+
+### Command 1: Validate your problem
 
 ```bash
-claude mcp add autoresearch-demo \
-  -e ANTHROPIC_API_KEY=$(grep ANTHROPIC_API_KEY .env | cut -d= -f2) \
-  -s user \
-  -- node "$(pwd)/dist/mcp/index.js"
+npx tsx src/autoresearch/main.ts \
+  --discover --idea-id feature-usage-tracker
 ```
 
-Then verify:
+**What it does:** Claude checks whether your problem is real, specific, and worth solving.
+
+**What to look for in the output:**
+
+- `Severity` — how serious is the problem? (1–10)
+- `Worth solving` — does Claude think it's worth building something?
+- `Validation gaps` — what's still unknown
+
+**Example output:**
+
+```text
+Validate Problem — feature-usage-tracker
+
+  Refined statement:  Developers can't tell which features in their app
+                      are actually being used
+  Severity:           7/10
+  Worth solving:      yes
+  Validation gaps:    exact percentage of unused features unknown
+  Recommended next:   run --prioritize
+
+  Next → npx tsx src/autoresearch/main.ts --prioritize --idea-id feature-usage-tracker
+```
+
+---
+
+### Command 2: Score your options
 
 ```bash
-claude mcp list
+npx tsx src/autoresearch/main.ts \
+  --prioritize --idea-id feature-usage-tracker
 ```
 
-**Expected output:**
+**What it does:** Claude comes up with different ways to solve the problem and scores each one.
+
+The scores use something called **ICE** — Impact (how much it helps), Confidence (how sure we are), Effort (how hard to build). Higher total = better bet.
+
+**Example output:**
 
 ```text
-autoresearch-demo   connected
+  Top opportunity: Usage dashboard showing feature interaction rates
+  Rationale:       Highest impact — directly solves the visibility gap
+
+  ICE Scores:
+    Opportunity                               I    C    E    Total
+    ─────────────────────────────────────────────────────────────
+    Usage dashboard with feature heat map     9    8    6     7.7
+    Weekly email digest to developers         6    9    8     7.7
+    Inline code hints with usage stats        7    6    5     6.0
 ```
-
-> **What is MCP?** See [CONCEPTS.md → What is MCP?](CONCEPTS.md#what-is-mcp)
-
-If you see `disconnected`, or you're on Windows, or you're using Claude Desktop — follow the full guide in [MCP_SETUP.md](MCP_SETUP.md).
 
 ---
 
-## Step 12: Discovery — Talk to the AI tools
-
-Open Claude Code in VS Code (click the Claude icon in the sidebar, or open a chat panel).
-
-You'll use three tools in order. Each one builds on the last. The same two-step pattern applies to all three:
-
-1. **First call** — Claude asks you clarifying questions
-2. **Second call** — you answer, Claude does the full analysis
-
----
-
-### Tool 1: `validate_problem`
-
-This tool stress-tests your idea. Call it first to get questions:
-
-```text
-Use validate_problem with problem_statement: "Developers can't tell which features in their app are actually being used"
-```
-
-Claude will respond with an `idea_id` that looks something like `feature-usage-abc123` and will ask you 3 focused questions. The `idea_id` is how the tools remember your work across calls — copy it from Claude's response.
-
-Answer the questions in chat, then call it again with your answers:
-
-```text
-Use validate_problem with:
-  idea_id: <paste the idea_id from Claude's first response here>
-  proceed: true
-  session_notes: "We have analytics showing 60% of features have almost no usage.
-                  Developers check logs manually which takes hours.
-                  The main workaround is quarterly review meetings."
-```
-
-**What to look for in the response:**
-
-- `severity` — how serious is the problem? (1–10 scale)
-- `worth_solving` — does the AI think it's worth building something?
-- `gaps` — what's still unknown?
-
----
-
-### Tool 2: `prioritize_opportunities`
-
-This tool scores different ways to solve the problem. Same two-step pattern:
-
-```text
-Use prioritize_opportunities with:
-  idea_id: <same idea_id>
-  proceed: false
-```
-
-Answer the questions, then:
-
-```text
-Use prioritize_opportunities with:
-  idea_id: <same idea_id>
-  proceed: true
-  session_notes: "Top ideas: (1) a usage dashboard, (2) weekly email digest, (3) inline code hints"
-```
-
-**What to look for:**
-
-- `top_opportunity` — the one recommended approach
-- ICE scores for each option — Impact (how much it helps), Confidence (how sure we are), Effort (how hard to build). Higher total = better bet.
-
----
-
-### Tool 3: `define_epic`
-
-This writes the first draft of the plan. It bridges Discovery and the Epic Refinement Loop.
-
-```text
-Use define_epic with:
-  idea_id: <same idea_id>
-  proceed: false
-```
-
-Answer questions, then:
-
-```text
-Use define_epic with:
-  idea_id: <same idea_id>
-  proceed: true
-  session_notes: "Focus on the usage dashboard. Team: 2 engineers, 1 designer. Timeline: one quarter."
-```
-
-**The response includes a `next_step` field** — a terminal command to run the Epic Refinement Loop. Copy it. You'll use it in the next step.
-
-You can also inspect the raw plan that was saved:
+### Command 3: Write the first draft plan
 
 ```bash
-cat artifacts/epics/<your-idea-id>/raw.json
+npx tsx src/autoresearch/main.ts \
+  --define-epic --idea-id feature-usage-tracker
 ```
+
+**What it does:** Claude takes everything from the previous two steps and writes a first draft of a feature plan (called an "epic"). An epic is a one-page spec: what problem it solves, what to build, and how to measure success.
+
+**Example output:**
+
+```text
+  Title:   "Feature Usage Dashboard"
+  Outcome: Developers can see which features are used and which aren't,
+           so they can make better prioritization decisions
+  Scope:   Dashboard UI | Event tracking API | Weekly digest email +2 more
+
+  Raw epic saved to: artifacts/epics/feature-usage-tracker/raw.json
+
+  Next → npx tsx src/autoresearch/main.ts \
+    --idea-id feature-usage-tracker \
+    --target-dir /path/to/your/project/docs \
+    --iterations 3
+```
+
+Copy the `Next →` command — you'll use it after the next step.
 
 ---
 
-## Step 13: Epic Refinement Loop — Run the autoresearch loop
+### Command 4: Put the plan into your project
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --inject --idea-id feature-usage-tracker \
+  --target-dir /path/to/your/project/docs
+```
+
+Replace `/path/to/your/project/docs` with a real folder path. For example:
+
+- Mac/Linux: `--target-dir ~/Desktop/my-project/docs`
+- Windows: `--target-dir C:\Users\YourName\Desktop\my-project\docs`
+
+**What it does:** Copies the draft plan into your project as a readable file (`feature-usage-tracker-epic.md`). The Epic Refinement Loop reads from this file.
+
+> **What if the folder doesn't exist yet?** The command creates it for you.
+
+---
+
+## Step 12: Epic Refinement Loop — Run the autoresearch loop
 
 > **What does this cost?** Before the loop starts making API calls, it prints a cost estimate. For 3 iterations with the default model, expect less than $0.01. You'll be asked to confirm before anything is charged. You can always use `--mock` to test the full flow for free.
 
-Paste the `next_step` command from Step 12 into your terminal. It looks like:
+Paste the `Next →` command from Step 11 (Command 3) into your terminal. It looks like:
 
 ```bash
 npx tsx src/autoresearch/main.ts \
@@ -432,7 +421,7 @@ The loop will print a cost estimate, ask you to confirm, then run 3 iterations. 
 
 ---
 
-## Step 13a: Try git mode (optional — shows the full Karpathy pattern)
+## Step 12a: Try git mode (optional — shows the full Karpathy pattern)
 
 > **What is the Karpathy pattern?** It's the technique this whole project is built around — a loop that generates, scores, and commits/reverts automatically. See [CONCEPTS.md → What is autoresearch?](CONCEPTS.md#what-is-autoresearch) and [HOW_IT_WORKS.md → The Karpathy Pattern](HOW_IT_WORKS.md#the-karpathy-pattern-six-properties).
 
@@ -464,7 +453,7 @@ Experiment log (git):
 
 ---
 
-## Step 13b: Try explore mode (optional — 3 framings, you pick the best)
+## Step 12b: Try explore mode (optional — 3 framings, you pick the best)
 
 Add `--explore` to run three different strategic framings of the same problem side by side.
 
@@ -498,7 +487,7 @@ Press Enter to use the recommended variation, or type a number to pick a differe
 
 ---
 
-## Step 14: Build — Build from the plan
+## Step 13: Build — Build from the plan
 
 Open the target project (the folder you pointed `--target-dir` at) in VS Code with Claude Code active.
 
@@ -520,7 +509,7 @@ Claude will:
 
 ---
 
-## Step 15: Code Quality Loop — improve the code
+## Step 14: Code Quality Loop — improve the code
 
 After the Build stage writes code, the Code Quality Loop applies the same Autoresearch pattern to the code itself: score it, improve it, repeat.
 
@@ -572,7 +561,7 @@ The code file is updated in place with the best version found.
 
 ---
 
-## Step 16: Validation Loop — check the code against the epic
+## Step 15: Validation Loop — check the code against the epic
 
 The validation loop closes the pipeline. It reads the success metrics from your epic and checks whether the code actually satisfies each one.
 
@@ -622,7 +611,7 @@ VALIDATION RESULT ────────────────────�
   All metrics pass! This code satisfies the epic.
 ```
 
-**What this means:** Every success metric from the epic you wrote in Step 12 is now satisfied by the code. "Done" was defined by the plan — the validation loop confirmed it.
+**What this means:** Every success metric from the epic you wrote in Step 11 is now satisfied by the code. "Done" was defined by the plan — the validation loop confirmed it.
 
 ---
 
@@ -646,7 +635,7 @@ Every step saved a file. You can open `artifacts/` to see every version of every
 
 If you just want to explore the system without any account or API key, you already did this in Step 9. Mock mode runs the full Epic Refinement Loop with scripted responses — scores go 2 → 7 → 9 across three iterations.
 
-You can also skip Discovery entirely and create a fake seed file. Run these two commands:
+You can also skip Discovery entirely and create a fake seed file using the built-in mock data. Run these two commands:
 
 ```bash
 mkdir -p artifacts/epics/my-test/
@@ -657,6 +646,8 @@ mkdir -p artifacts/epics/my-test/
 ```bash
 cp artifacts/epics/test-idea/raw.json artifacts/epics/my-test/raw.json
 ```
+
+> **Tip:** The `test-idea` folder is included with the project — it's the mock data that `npm run demo` uses. You're just copying it to a new name.
 
 Then run:
 

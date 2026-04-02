@@ -10,7 +10,7 @@ You describe a problem. An AI asks you questions. Then a program runs in a loop,
 
 ## What you'll learn
 
-- How to talk to an AI using tools (called **MCP tools** — think of them like apps that give Claude new abilities) from inside a code editor
+- How to run a step-by-step discovery process with simple terminal commands
 - How an automated loop can improve a document by scoring it and rewriting it over and over
 - How a structured plan can be handed off to an AI to start building real software
 
@@ -47,11 +47,14 @@ The pipeline has 5 stages. Three of them are **loops** — they run automaticall
 ┌─────────────────────────────────────────────────────────────────┐
 │  DISCOVERY                                                       │
 │                                                                  │
-│  validate_problem → prioritize_opportunities → define_epic       │
+│  --discover → --prioritize → --define-epic → --inject            │
 │                                                                  │
-│  You answer questions. Claude validates your idea and writes     │
-│  a first draft plan (called an "epic" — a written spec for       │
-│  a feature: the problem, what to build, how to measure success). │
+│  You run four terminal commands, one at a time. Each one asks    │
+│  Claude a question about your idea and saves the answer.         │
+│  At the end you have a first draft plan (called an "epic").      │
+│                                                                  │
+│  Optional: use MCP tools inside Claude Code instead of terminal  │
+│  commands. Same result — different way to get there.             │
 └───────────────────────────┬─────────────────────────────────────┘
                             │  saves: raw.json (draft plan)
                             │
@@ -149,12 +152,12 @@ Follow this path — in order:
 
 | Step | Document | What you'll get |
 | ---- | -------- | --------------- |
-| 1 | [docs/CONCEPTS.md](docs/CONCEPTS.md) | Plain-English explanations of every term used in this project — AI, tokens, MCP, git, terminals. Read this first if anything sounds unfamiliar. |
+| 1 | [docs/CONCEPTS.md](docs/CONCEPTS.md) | Plain-English explanations of every term used in this project — AI, tokens, git, terminals. Read this first if anything sounds unfamiliar. |
 | 2 | [The PM example below ↓](#a-real-example-for-product-managers) | A worked scenario showing exactly how a PM would use this tool on a real problem, step by step. |
 | 3 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Install, run the demo, and see the loop in action. Takes about 30 minutes. |
-| 3a | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | Connect the AI tools to your editor or Claude Desktop (VS Code, Mac, Windows). Step-by-step with screenshots-level detail. |
 | 4 | [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) | The core ideas — why loops beat one-shot generation, what the "governance model" means for PMs, how this changes your role. |
-| 5 | [docs/FEATURES.md](docs/FEATURES.md) | Every feature explained: explore mode, git mode, RAG, model routing, token costs. Bookmark this for when you want to try something new. |
+| 5 | [docs/FEATURES.md](docs/FEATURES.md) | Every feature explained: discovery flags, explore mode, git mode, RAG, model routing, token costs. Bookmark this for when you want to try something new. |
+| 6 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | **Optional.** Connect the AI tools to Claude Desktop (VS Code, Mac, Windows) if you want to run discovery by chatting with Claude instead of typing terminal commands. |
 
 ### If you're a developer
 
@@ -190,30 +193,76 @@ With this tool, you spend 20 minutes describing the problem — and the AI does 
 
 ---
 
-### Step 1: Describe your problem (in Claude Code)
+### Step 1: Describe your problem and get an idea ID
 
-Open your terminal (the black screen where you type commands). Start Claude Code. Then type something like this to the AI:
+Open your terminal (the black screen where you type commands). Run this:
 
-```text
-I'm a PM at a fitness app company. New users sign up but don't come back after week 1.
-I think we need to improve onboarding. Can you help me define this as a feature?
+```bash
+npx tsx src/autoresearch/main.ts \
+  --discover --idea-id fitness-retention
 ```
 
-Claude will say "let me help you validate this" and call the `validate_problem` tool. It will ask you 3 questions — things like:
+Claude will analyze your idea and print a summary:
 
-- "Who exactly is affected? First-time users only, or returning users too?"
-- "What does 'not coming back' mean in numbers? What's the current drop-off rate?"
-- "Have you tried anything before? What happened?"
+```text
+Validate Problem — fitness-retention
 
-You answer these. Be specific. The more specific you are, the better the output.
+  Analyzing with Claude...
 
-> **Why does it ask questions?** Because "improve retention" is too vague to build anything. The AI is pushing you to be specific *before* it writes anything — just like a good engineer would.
+  Refined statement:  Users who sign up for the fitness app are not
+                      returning after their first week
+  Problem type:       retention gap
+  Severity:           7/10
+  Worth solving:      yes
+  Validation gaps:    exact drop-off rate unknown | no user interviews yet
+  Recommended next:   run prioritize_opportunities
+
+  Next → npx tsx src/autoresearch/main.ts --prioritize --idea-id fitness-retention
+```
+
+The more specific your idea ID (e.g. `fitness-retention`), the better the output. Think of the idea ID like a project folder name — it keeps all your work organized in one place.
+
+> **Why does it validate first?** Because "improve retention" is too vague to build anything. The AI is pushing you to be specific *before* writing a plan — just like a good engineer would.
 
 ---
 
-### Step 2: Get a first draft plan
+### Step 2: Score your options
 
-After you answer the questions, Claude calls `define_epic`. This creates a first draft of your feature plan (called an "epic"). It will look something like this:
+Run the next command the tool printed:
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --prioritize --idea-id fitness-retention
+```
+
+Claude will score different ways to solve the problem and show you a table:
+
+```text
+  Top opportunity: Build a 7-day streak feature with push notification on day 3
+  Rationale:       Highest confidence — behavioural nudge, low engineering effort
+
+  ICE Scores:
+    Opportunity                               I    C    E    Total
+    ─────────────────────────────────────────────────────────────
+    7-day streak + day-3 push notification    9    8    7     8.0
+    Weekly progress email summary             7    9    8     8.0
+    Guided onboarding flow (3 steps)          8    7    6     7.0
+```
+
+ICE means Impact (how much it helps), Confidence (how sure we are), Effort (how hard to build). Higher total = better bet.
+
+---
+
+### Step 3: Get a first draft plan
+
+Run the next step:
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --define-epic --idea-id fitness-retention
+```
+
+This creates a first draft of your feature plan (called an "epic"). It will look something like this:
 
 ```text
 Problem: 62% of new users don't return after day 7.
@@ -235,9 +284,23 @@ This is a rough draft. It might be vague in places. That's okay — the next ste
 
 ---
 
-### Step 3: Run the refinement loop
+### Step 4: Put the plan where the loop can find it
 
-Claude gives you a command to run. It looks like this:
+The last discovery step copies the raw plan into your project's docs folder:
+
+```bash
+npx tsx src/autoresearch/main.ts \
+  --inject --idea-id fitness-retention \
+  --target-dir ./docs
+```
+
+This saves the plan as `docs/fitness-retention-epic.md` — a file the refinement loop can read and improve.
+
+---
+
+### Step 5: Run the refinement loop
+
+The `--define-epic` step prints a command to run next. It looks like this:
 
 ```bash
 npx tsx src/autoresearch/main.ts --idea-id fitness-retention --target-dir ./docs --iterations 5
@@ -273,7 +336,7 @@ You just watched the AI improve a draft plan 3 times in about 90 seconds.
 
 ---
 
-### Step 4: Read your finished plan
+### Step 6: Read your finished plan
 
 The final plan is saved as a file: `docs/fitness-retention-epic.md`.
 
@@ -287,7 +350,7 @@ This is a plan you could hand to an engineer today.
 
 ---
 
-### Step 5 (optional): Compare 3 different angles
+### Step 7 (optional): Compare 3 different angles
 
 Not sure which way to frame the problem? Run explore mode:
 
@@ -360,3 +423,14 @@ Scoring criteria, improvement hints, and the two-call preflight pattern are all 
 | `npm run build` | Compile TypeScript → `dist/` (run once after install, or after code changes) |
 | `npm run clean` | Delete `dist/` (compiled code) and `artifacts/` (demo output) — resets everything; follow with `npm run build` |
 | `npm run dev` | Watch mode — recompiles automatically as you edit files |
+
+### Discovery pipeline commands
+
+Run these in order — each one builds on the last:
+
+| Command | What it does |
+| ------- | ------------ |
+| `npx tsx src/autoresearch/main.ts --discover --idea-id <id>` | Step 1 — validate your problem hypothesis |
+| `npx tsx src/autoresearch/main.ts --prioritize --idea-id <id>` | Step 2 — score different ways to solve it (ICE scores) |
+| `npx tsx src/autoresearch/main.ts --define-epic --idea-id <id>` | Step 3 — write a first draft plan |
+| `npx tsx src/autoresearch/main.ts --inject --idea-id <id> --target-dir ./docs` | Step 4 — copy the draft plan into your project |

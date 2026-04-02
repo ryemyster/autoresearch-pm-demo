@@ -1,23 +1,50 @@
-// Autoresearch CLI — entry point for all loops (Epic Refinement, Code Quality, Validation).
+// main.ts — The single entry point for everything in this project.
 //
-// Usage:
+// Think of this file as the "control room." Every command you type in the terminal
+// comes through here. This file reads your flags, figures out which mode to run,
+// and hands off to the right part of the codebase.
+//
+// ── DISCOVERY (run these first, in order) ──────────────────────────────────────
+//
+//   npx tsx src/autoresearch/main.ts --discover    --idea-id <id>
+//   npx tsx src/autoresearch/main.ts --prioritize  --idea-id <id>
+//   npx tsx src/autoresearch/main.ts --define-epic --idea-id <id>
+//   npx tsx src/autoresearch/main.ts --inject      --idea-id <id> --target-dir /path/to/docs
+//
+//   These four steps take your rough idea and turn it into a first draft plan.
+//   Each step saves its result so the next step can read it.
+//   No --target-dir needed for the first three — only --inject needs it.
+//
+// ── EPIC REFINEMENT LOOP (run after --inject) ──────────────────────────────────
+//
 //   npx tsx src/autoresearch/main.ts \
 //     --idea-id <id> \
 //     --target-dir /absolute/path/to/project/docs \
 //     --iterations 3 \
-//     [--git-mode]      ← enable git commit/revert cycle (the full Karpathy pattern)
-//     [--explore]       ← run 3 framings side-by-side, then pick the best
-//     [--code-quality]  ← run the code quality improvement loop (requires --target-file)
-//     [--validate]      ← run the validation loop against epic metrics (requires --target-file)
-//     [--target-file]   ← path to the code file to improve (required for --code-quality/--validate)
-//     [--rag]           ← enable vector store retrieval (configure in rag.config.json)
-//     [--models]        ← enable per-stage model routing (configure in models.config.json)
-//     [--yes]           ← skip the cost-confirmation prompt
-//     [--mock]          ← no API key needed, uses scripted fixtures
+//     [--git-mode]      ← record every attempt in git (great for learning)
+//     [--explore]       ← run 3 different angles side-by-side, then pick the best
+//     [--yes]           ← skip the "are you sure?" cost prompt
+//     [--mock]          ← no API key needed, uses fake scripted responses
 //
-// Teaching note: ALL env vars MUST be set before any imports, because config.ts
-// reads them lazily at access time. Module-level code in imported files runs
-// as soon as they are imported, so flags must come FIRST.
+// ── CODE QUALITY + VALIDATION LOOPS (run after /build-from-epic) ───────────────
+//
+//   npx tsx src/autoresearch/main.ts \
+//     --idea-id <id> \
+//     --target-dir /path/to/docs \
+//     --target-file /path/to/your-feature.ts \
+//     --iterations 3 \
+//     [--code-quality]  ← improve the code: clean types, no security holes, readable
+//     [--validate]      ← check that the code satisfies each success metric in the epic
+//
+// ── OTHER FLAGS ────────────────────────────────────────────────────────────────
+//
+//     [--rag]           ← pull in your own past docs to help Claude write better
+//     [--models]        ← use different AI models for different stages (saves cost)
+//
+// ── Technical note (for developers) ───────────────────────────────────────────
+// ALL process.env assignments MUST happen before any imports. The config.ts file
+// reads env vars the moment it is imported — not when a function runs. So flags
+// must be set first, otherwise config.ts reads stale values.
 
 // ── Set env vars BEFORE any imports ───────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -125,12 +152,11 @@ if (!mockMode && !injectMode) assertApiKey();
 // ─── Cost Estimate ────────────────────────────────────────────────────────────
 
 /**
- * WHAT: Prints an estimate of how many tokens this run will use and what it costs.
- * WHY:  LLM API calls cost real money. Showing the estimate before any calls are
- *       made gives the student a chance to abort if the number looks surprising.
- *       It also teaches that every AI call has a cost — "tokens" are the unit of
- *       work that the API charges for.
- * LEARN MORE: docs/HOW_IT_WORKS.md → "Token Costs and Iteration Limits"
+ * Prints an estimate of how much this run will cost before spending any money.
+ * Each call to Claude costs a small amount based on "tokens" (roughly one word each).
+ * This gives you a chance to cancel if the number looks higher than expected.
+ * Add --yes to your command to skip this prompt and run unattended.
+ * LEARN MORE: docs/FEATURES.md → "Token Costs and Iteration Limits"
  */
 function printCostEstimate(n: number, isExplore: boolean): void {
   const variations = isExplore ? 3 : 1;
@@ -161,9 +187,9 @@ function printCostEstimate(n: number, isExplore: boolean): void {
 }
 
 /**
- * WHAT: Asks "Continue? [y/N]" in the terminal and waits for the user to type.
- * WHY:  A simple confirmation before spending money on API calls. The --yes flag
- *       skips this for users who already know what they're doing.
+ * Shows "Continue? [y/N]" in the terminal and waits for you to press a key.
+ * This happens before any money is spent. Type y to continue, n (or just Enter) to cancel.
+ * Skip it with --yes if you want the loop to run without interruption.
  */
 async function promptConfirm(message: string): Promise<boolean> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });

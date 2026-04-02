@@ -1,12 +1,26 @@
-# Connecting the Discovery Tools
+# Connecting the Discovery Tools (Optional — MCP Setup)
 
-This guide shows you how to connect three AI tools to your computer so you can use them with Claude.
+> **You don't need this to run the demo.**
+>
+> The discovery pipeline runs just fine from the terminal using four commands (`--discover`, `--prioritize`, `--define-epic`, `--inject`). Those are faster to set up and work on every computer.
+>
+> This guide is for people who prefer to **chat with Claude** instead of typing terminal commands. If that's you — read on!
+
+---
+
+This guide shows you how to connect the three discovery tools to your AI chat app (VS Code with Claude Code, or Claude Desktop).
+
+Once connected, instead of typing a terminal command, you can just say to Claude:
+
+> "Use validate_problem with this problem: developers can't tell which features are being used."
+
+Claude will call the tool for you and show you the result in chat.
 
 The three tools are:
 
-- **validate_problem** — you describe a problem, and it asks you questions to make it sharper
+- **validate_problem** — you describe a problem, and it asks questions to sharpen it
 - **prioritize_opportunities** — it scores different ways to solve the problem
-- **define_epic** — it writes a first draft plan you can hand to the AI loop to refine
+- **define_epic** — it writes a first draft plan you can hand to the refinement loop
 
 Right now these tools are just code sitting in a folder on your computer. This guide teaches your AI app where to find them and how to run them.
 
@@ -20,7 +34,7 @@ Think of it like this.
 
 Your phone comes with a calculator app. If you want a new app — say, a budgeting app — you have to install it first. After that, it just lives on your phone.
 
-These Discovery tools work the same way. They are new abilities that don't come built into Claude. You have to tell Claude's app "hey, there are extra tools living at this location on my computer." Once you do that, Claude can use them whenever you ask.
+These discovery tools work the same way. They are new abilities that don't come built into Claude. You have to tell Claude's app "hey, there are extra tools living at this location on my computer." Once you do that, Claude can use them whenever you ask.
 
 The technical name for this system is **MCP** (Model Context Protocol). You don't need to understand how it works — just follow the steps below.
 
